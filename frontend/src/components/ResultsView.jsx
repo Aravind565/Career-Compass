@@ -2,56 +2,51 @@ import React, { useState } from 'react';
 import { 
   PieChart, CheckCircle, XCircle, BookOpen, Brain, Download, 
   RefreshCw, Award, TrendingUp, FileText, ChevronDown, ExternalLink, 
-  Calendar, Target, BarChart, Search, Zap, Users, Code, Database, 
-  Cloud, Settings, Clock, Star, ChevronRight, ArrowUpRight, Sparkles, 
-  MessageSquare, Bot, Share2, Check, Trophy, Lightbulb, GraduationCap,
-  ArrowRight
+  Calendar, Target, Search, Zap, Users, Code, Database, 
+  Cloud, Settings, Clock, ChevronRight, ArrowUpRight, Sparkles, 
+  MessageSquare, Bot, Share2, Check, Trophy, Lightbulb, GraduationCap
 } from 'lucide-react';
 
-// --- Helper Functions ---
-
-const normalizeSkillName = (skill) => {
-  const skillMap = {
-    'c++': 'C++', 'cplusplus': 'C++', 'cpp': 'C++',
-    'java': 'Java', 'java se': 'Java', 'core java': 'Java',
-    'javascript': 'JavaScript', 'js': 'JavaScript',
-    'react': 'React', 'react.js': 'React', 'reactjs': 'React',
-    'git': 'Git', 'sql': 'SQL', 'mysql': 'SQL', 'postgresql': 'SQL',
-    'mongodb': 'MongoDB', 'express': 'Express.js',
-    'node': 'Node.js', 'node.js': 'Node.js',
-    'python': 'Python', 'html': 'HTML', 'css': 'CSS',
-    'tailwind': 'Tailwind CSS', 'tailwind css': 'Tailwind CSS',
-    'postman': 'Postman'
-  };
-  const lowerSkill = skill.toLowerCase().trim();
-  return skillMap[lowerSkill] || skill;
-};
-
 const categorizeSkill = (skillName) => {
-  const programming = ['c++', 'java', 'python', 'javascript', 'typescript'];
-  const frameworks = ['react', 'angular', 'vue', 'node.js', 'express', 'next.js'];
-  const databases = ['sql', 'mysql', 'mongodb', 'postgresql', 'database'];
-  const tools = ['git', 'docker', 'aws', 'azure', 'jenkins', 'postman'];
-  const frontend = ['html', 'css', 'tailwind', 'bootstrap'];
-  
   const lowerName = skillName.toLowerCase();
-  
-  if (programming.some(lang => lowerName.includes(lang))) return 'Programming';
-  if (frameworks.some(fw => lowerName.includes(fw))) return 'Frameworks';
-  if (frontend.some(fe => lowerName.includes(fe))) return 'Frontend';
-  if (databases.some(db => lowerName.includes(db))) return 'Databases';
-  if (tools.some(tool => lowerName.includes(tool))) return 'Tools';
+  const categories = {
+    programming: ['c++', 'java', 'python', 'javascript', 'typescript'],
+    frameworks: ['react', 'angular', 'vue', 'node', 'express', 'next'],
+    databases: ['sql', 'mysql', 'mongodb', 'postgresql', 'database'],
+    tools: ['git', 'docker', 'aws', 'azure', 'jenkins', 'postman'],
+    frontend: ['html', 'css', 'tailwind', 'bootstrap']
+  };
+
+  if (categories.programming.some(lang => lowerName.includes(lang))) return 'Programming';
+  if (categories.frameworks.some(fw => lowerName.includes(fw))) return 'Frameworks';
+  if (categories.frontend.some(fe => lowerName.includes(fe))) return 'Frontend';
+  if (categories.databases.some(db => lowerName.includes(db))) return 'Databases';
+  if (categories.tools.some(tool => lowerName.includes(tool))) return 'Tools';
   
   return 'General';
 };
 
-// --- Main Component ---
+const getScoreColor = (score) => {
+  if (score >= 8) return 'emerald';
+  if (score >= 6) return 'amber';
+  return 'rose';
+};
+
+const getCategoryIcon = (category) => {
+  switch(category?.toLowerCase()) {
+    case 'programming': return <Code size={14} />;
+    case 'frameworks': return <Zap size={14} />;
+    case 'tools': return <Settings size={14} />;
+    case 'databases': return <Database size={14} />;
+    case 'cloud': return <Cloud size={14} />;
+    default: return <Code size={14} />;
+  }
+};
 
 const ResultsView = ({ 
   result, 
   onEdit, 
   previousScore, 
-  onExport,
   jobDescription,
   resumeText,
   onOpenAIChat
@@ -61,117 +56,61 @@ const ResultsView = ({
   const [searchSkill, setSearchSkill] = useState('');
   const [shareCopied, setShareCopied] = useState(false);
 
-  // --- Safe Data Handling ---
+  // Safe data handling with defaults
   const safeResult = {
     score: result?.score || 0,
     atsScore: result?.atsScore || 0,
     experienceLevel: result?.experienceLevel || 'mid',
     matchLevel: result?.matchLevel || 'Good Fit',
-    summary: result?.summary || 'Analysis complete. Review the detailed insights below.',
+    summary: result?.summary || 'Analysis complete.',
     skills: {
-      required: Array.isArray(result?.skills?.required) ? result.skills.required : getDefaultSkills(),
-      present: Array.isArray(result?.skills?.present) ? result.skills.present : [],
-      missing: Array.isArray(result?.skills?.missing) ? result.skills.missing : []
+      required: result?.skills?.required || [],
+      present: result?.skills?.present || [],
+      missing: result?.skills?.missing || []
     },
-    insights: Array.isArray(result?.insights) ? result.insights : getDefaultInsights(),
-    learningPath: Array.isArray(result?.learningPath) ? result.learningPath : getDefaultLearningPath(result?.skills?.missing),
-    aiGuidance: result?.aiGuidance || '## Comprehensive Career Analysis\n\nDetailed analysis completed. Review insights below.',
-    conversationalAI: result?.conversationalAI || 'Hi! I\'ve analyzed your resume against the job description.',
-    metadata: result?.metadata || {}
+    insights: result?.insights || [],
+    learningPath: result?.learningPath || [],
+    aiGuidance: result?.aiGuidance || '## Analysis\n\nReview the detailed insights below.',
+    conversationalAI: result?.conversationalAI || ''
   };
 
-  // Defaults
-  function getDefaultSkills() {
-    return [
-      { name: "JavaScript", category: "Programming" },
-      { name: "React", category: "Frameworks" },
-      { name: "Node.js", category: "Frameworks" },
-      { name: "SQL", category: "Databases" }
-    ];
-  }
-
-  function getDefaultInsights() {
-    return [
-      { type: "strength", message: "Strong technical foundation detected" },
-      { type: "advice", message: "Tailor your resume keywords to the job description" }
-    ];
-  }
-
-  function getDefaultLearningPath(missingSkills = []) {
-    if (missingSkills && missingSkills.length > 0) {
-      return missingSkills.slice(0, 3).map((skill, idx) => ({
-        skill: skill.name,
-        timeEstimate: "2-3 weeks",
-        resources: ["Documentation", "Online Course"],
-        priority: idx === 0 ? "High" : "Medium"
-      }));
-    }
-    // If no missing skills, return empty array to trigger the "Advanced Learning" UI state
-    return [];
-  }
-
-  // --- Logic & Calculations ---
-  
   const presentSkillsCount = safeResult.skills.present.length;
   const missingSkillsCount = safeResult.skills.missing.length;
   const totalSkills = presentSkillsCount + missingSkillsCount;
   const matchPercentage = totalSkills > 0 ? Math.round((presentSkillsCount / totalSkills) * 100) : 0;
-  
-  const calculateOverallScore = () => {
-    return Math.min(10, Math.max(0, safeResult.score));
-  };
-  const overallScore = calculateOverallScore();
-
-  // Search Filters
-  const filteredPresentSkills = safeResult.skills.present.filter(skill => 
-    skill.name.toLowerCase().includes(searchSkill.toLowerCase()) ||
-    skill.category.toLowerCase().includes(searchSkill.toLowerCase())
-  );
-  
-  const filteredMissingSkills = safeResult.skills.missing.filter(skill => 
-    skill.name.toLowerCase().includes(searchSkill.toLowerCase()) ||
-    skill.category.toLowerCase().includes(searchSkill.toLowerCase())
-  );
+  const overallScore = Math.min(10, Math.max(0, safeResult.score));
+  const scoreColor = getScoreColor(overallScore);
 
   const improvements = safeResult.insights.filter(i => i.type === 'improvement');
   const strengths = safeResult.insights.filter(i => i.type === 'strength');
   const advice = safeResult.insights.filter(i => i.type === 'advice');
 
-  // --- Export & Share Logic ---
+  const filteredPresent = safeResult.skills.present.filter(s => 
+    s.name.toLowerCase().includes(searchSkill.toLowerCase()) || 
+    s.category.toLowerCase().includes(searchSkill.toLowerCase())
+  );
 
-  const generateShareableText = () => {
-    return `🎯 CAREER COMPASS REPORT\nScore: ${overallScore}/10\nMatch: ${safeResult.matchLevel}\nATS Score: ${safeResult.atsScore}%\nSummary: ${safeResult.summary}\n\nGenerated by AI.`;
-  };
+  const filteredMissing = safeResult.skills.missing.filter(s => 
+    s.name.toLowerCase().includes(searchSkill.toLowerCase()) || 
+    s.category.toLowerCase().includes(searchSkill.toLowerCase())
+  );
 
   const handleShare = () => {
-    navigator.clipboard.writeText(generateShareableText()).then(() => {
+    const text = `🎯 CAREER COMPASS REPORT\nScore: ${overallScore}/10\nMatch: ${safeResult.matchLevel}\nATS Score: ${safeResult.atsScore}%\nSummary: ${safeResult.summary}`;
+    navigator.clipboard.writeText(text).then(() => {
       setShareCopied(true);
       setTimeout(() => setShareCopied(false), 2000);
     });
   };
 
   const handleTxtExport = () => {
+    const text = `CAREER COMPASS REPORT\n------------------\nScore: ${overallScore}/10\nMatch Level: ${safeResult.matchLevel}\n\nSUMMARY:\n${safeResult.summary}\n\nSKILLS:\nPresent: ${safeResult.skills.present.map(s => s.name).join(', ')}\nMissing: ${safeResult.skills.missing.map(s => s.name).join(', ')}`;
     const element = document.createElement("a");
-    const file = new Blob([generateShareableText()], {type: 'text/plain'});
+    const file = new Blob([text], {type: 'text/plain'});
     element.href = URL.createObjectURL(file);
     element.download = "Career_Analysis.txt";
     document.body.appendChild(element);
     element.click();
-  };
-
-  // --- UI Helpers ---
-
-  const getScoreColor = (score) => score >= 8 ? 'emerald' : score >= 6 ? 'amber' : 'rose';
-  
-  const getCategoryIcon = (category) => {
-    switch(category?.toLowerCase()) {
-      case 'programming': return <Code size={14} />;
-      case 'frameworks': return <Zap size={14} />;
-      case 'tools': return <Settings size={14} />;
-      case 'databases': return <Database size={14} />;
-      case 'cloud': return <Cloud size={14} />;
-      default: return <Code size={14} />;
-    }
   };
 
   const renderMarkdown = (text) => {
@@ -184,7 +123,6 @@ const ResultsView = ({
     });
   };
 
-  // --- Tabs Configuration ---
   const tabs = [
     { id: 'overview', icon: PieChart, label: 'Overview' },
     { id: 'skills', icon: CheckCircle, label: 'Skills Gap' },
@@ -193,12 +131,10 @@ const ResultsView = ({
     { id: 'insights', icon: Award, label: 'Insights' },
   ];
 
-  // --- Render Components ---
-
   return (
     <div className="w-full max-w-7xl mx-auto pb-12 px-2 sm:px-4 lg:px-6 font-sans">
       
-      {/* 1. Header Section */}
+      {/* Header */}
       <div className="relative mb-8 pt-6">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 blur-3xl -z-10 rounded-full" />
         
@@ -262,7 +198,7 @@ const ResultsView = ({
         </div>
       </div>
 
-      {/* 2. Floating Tabs */}
+      {/* Tabs */}
       <div className="sticky top-4 z-20 mb-8 overflow-x-auto pb-2 scrollbar-hide">
         <div className="flex items-center gap-2 bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl border border-white/20 dark:border-gray-700/30 p-1.5 rounded-2xl w-max mx-auto shadow-lg shadow-gray-200/20 dark:shadow-black/20">
           {tabs.map((tab) => (
@@ -282,27 +218,27 @@ const ResultsView = ({
         </div>
       </div>
 
-      {/* 3. Main Content Area */}
+      {/* Content Area */}
       <div className="min-h-[500px] animate-in fade-in slide-in-from-bottom-4 duration-500">
         
-        {/* === OVERVIEW TAB === */}
+        {/* OVERVIEW */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Score Card - Large */}
+              
+              {/* Score Card */}
               <div className="md:col-span-2 bg-white/40 dark:bg-gray-800/40 backdrop-blur-xl border border-white/40 dark:border-gray-700/40 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
-                <div className={`absolute inset-0 bg-gradient-to-br from-${getScoreColor(overallScore)}-500/5 via-transparent to-transparent`} />
+                <div className={`absolute inset-0 bg-gradient-to-br from-${scoreColor}-500/5 via-transparent to-transparent`} />
                 <div className="flex flex-row items-center justify-between h-full relative z-10">
                   <div className="flex-1">
                     <h3 className="text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider text-xs mb-1">Overall Match</h3>
                     <div className="flex items-baseline gap-2">
-                      <span className={`text-6xl font-black text-${getScoreColor(overallScore)}-600 dark:text-${getScoreColor(overallScore)}-400 tracking-tight`}>
+                      <span className={`text-6xl font-black text-${scoreColor}-600 dark:text-${scoreColor}-400 tracking-tight`}>
                         {overallScore}
                       </span>
                       <span className="text-2xl text-gray-400 font-bold">/10</span>
                     </div>
-                    <p className={`mt-2 font-semibold text-lg text-${getScoreColor(overallScore)}-700 dark:text-${getScoreColor(overallScore)}-300`}>
+                    <p className={`mt-2 font-semibold text-lg text-${scoreColor}-700 dark:text-${scoreColor}-300`}>
                       {safeResult.matchLevel}
                     </p>
                     
@@ -315,19 +251,18 @@ const ResultsView = ({
                     )}
                   </div>
 
-                  {/* Circular visual */}
                   <div className="relative w-32 h-32 flex items-center justify-center">
                     <svg className="w-full h-full transform -rotate-90">
                       <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-gray-200 dark:text-gray-700 opacity-30" />
                       <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="12" fill="transparent" 
                         strokeDasharray={351.86} 
                         strokeDashoffset={351.86 - (351.86 * overallScore) / 10} 
-                        className={`text-${getScoreColor(overallScore)}-500 transition-all duration-1000 ease-out`} 
+                        className={`text-${scoreColor}-500 transition-all duration-1000 ease-out`} 
                         strokeLinecap="round"
                       />
                     </svg>
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <Award className={`w-10 h-10 text-${getScoreColor(overallScore)}-500`} />
+                      <Award className={`w-10 h-10 text-${scoreColor}-500`} />
                     </div>
                   </div>
                 </div>
@@ -382,7 +317,7 @@ const ResultsView = ({
                 </p>
             </div>
 
-            {/* Quick Insights Grid */}
+            {/* Quick Insights */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800/30 rounded-2xl p-5 backdrop-blur-sm">
                     <h4 className="font-semibold text-emerald-800 dark:text-emerald-300 mb-3 flex items-center gap-2">
@@ -424,7 +359,7 @@ const ResultsView = ({
           </div>
         )}
 
-        {/* === SKILLS TAB === */}
+        {/* SKILLS TAB */}
         {activeTab === 'skills' && (
           <div className="space-y-6">
             <div className="relative group">
@@ -449,13 +384,13 @@ const ResultsView = ({
                             <CheckCircle className="text-emerald-500" /> Matched Skills
                         </h3>
                         <span className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-3 py-1 rounded-full text-xs font-bold">
-                            {filteredPresentSkills.length} Found
+                            {filteredPresent.length} Found
                         </span>
                     </div>
                     
-                    {filteredPresentSkills.length > 0 ? (
+                    {filteredPresent.length > 0 ? (
                         <div className="flex flex-wrap gap-2">
-                            {filteredPresentSkills.map((skill, i) => (
+                            {filteredPresent.map((skill, i) => (
                                 <div key={i} className="group flex items-center gap-2 pl-2 pr-3 py-1.5 bg-white dark:bg-gray-700 border border-emerald-200 dark:border-emerald-800/50 rounded-lg shadow-sm hover:shadow-md transition-all hover:scale-105 cursor-default">
                                     {getCategoryIcon(skill.category)}
                                     <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{skill.name}</span>
@@ -470,18 +405,18 @@ const ResultsView = ({
 
                 {/* Missing Skills */}
                 <div className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-xl border border-white/40 dark:border-gray-700/40 rounded-3xl p-6 shadow-lg">
-                     <div className="flex items-center justify-between mb-6 border-b border-gray-200/50 dark:border-gray-700/50 pb-4">
+                      <div className="flex items-center justify-between mb-6 border-b border-gray-200/50 dark:border-gray-700/50 pb-4">
                         <h3 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
                             <XCircle className="text-rose-500" /> Missing Skills
                         </h3>
                         <span className="bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 px-3 py-1 rounded-full text-xs font-bold">
-                            {filteredMissingSkills.length} Missing
+                            {filteredMissing.length} Missing
                         </span>
                     </div>
 
-                    {filteredMissingSkills.length > 0 ? (
+                    {filteredMissing.length > 0 ? (
                         <div className="space-y-3">
-                            {filteredMissingSkills.map((skill, i) => (
+                            {filteredMissing.map((skill, i) => (
                                 <div key={i} className="flex items-center justify-between p-3 bg-rose-50/50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-800/30 rounded-xl hover:bg-rose-100/50 transition-colors">
                                     <div className="flex items-center gap-3">
                                         <div className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm text-rose-500">
@@ -514,7 +449,7 @@ const ResultsView = ({
           </div>
         )}
 
-        {/* === LEARNING PATH TAB === */}
+        {/* LEARNING PATH TAB */}
         {activeTab === 'learning' && (
           <div className="grid lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
@@ -534,7 +469,6 @@ const ResultsView = ({
                             {safeResult.learningPath.map((step, index) => (
                                 <div key={index} className="group bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-xl hover:scale-[1.01] transition-all duration-300 relative overflow-hidden">
                                     <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50 dark:bg-indigo-900/20 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-                                    
                                     <div className="relative z-10">
                                         <div className="flex justify-between items-start mb-3">
                                             <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg text-indigo-600 dark:text-indigo-400">
@@ -638,7 +572,7 @@ const ResultsView = ({
           </div>
         )}
 
-        {/* === GUIDANCE / COACH TAB === */}
+        {/* GUIDANCE TAB */}
         {activeTab === 'guidance' && (
            <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-xl border border-white/40 dark:border-gray-700/40 rounded-3xl p-6 lg:p-10 shadow-xl">
              <div className="max-w-3xl mx-auto">
@@ -656,7 +590,7 @@ const ResultsView = ({
                <div className="bg-white/80 dark:bg-gray-900/80 rounded-2xl p-8 border border-gray-200 dark:border-gray-700 shadow-sm relative">
                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-t-2xl"></div>
                   <div className="prose prose-indigo dark:prose-invert max-w-none">
-                     {renderMarkdown(safeResult.aiGuidance)}
+                      {renderMarkdown(safeResult.aiGuidance)}
                   </div>
                </div>
 
@@ -674,10 +608,9 @@ const ResultsView = ({
            </div>
         )}
 
-        {/* === INSIGHTS TAB === */}
+        {/* INSIGHTS TAB */}
         {activeTab === 'insights' && (
            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Strengths Card */}
               <div className="bg-emerald-50/50 dark:bg-emerald-900/10 backdrop-blur-xl border border-emerald-100 dark:border-emerald-800/30 rounded-3xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
                   <div className="flex items-center gap-3 mb-6 relative z-10">
@@ -700,7 +633,6 @@ const ResultsView = ({
                   )}
               </div>
 
-              {/* Improvements Card */}
               <div className="bg-rose-50/50 dark:bg-rose-900/10 backdrop-blur-xl border border-rose-100 dark:border-rose-800/30 rounded-3xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
                   <div className="flex items-center gap-3 mb-6 relative z-10">
@@ -729,7 +661,6 @@ const ResultsView = ({
                   )}
               </div>
 
-              {/* Strategic Advice Card */}
               <div className="bg-blue-50/50 dark:bg-blue-900/10 backdrop-blur-xl border border-blue-100 dark:border-blue-800/30 rounded-3xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 md:col-span-2 lg:col-span-1 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
                   <div className="flex items-center gap-3 mb-6 relative z-10">
@@ -756,7 +687,6 @@ const ResultsView = ({
 
       </div>
 
-      {/* Footer */}
       <div className="mt-16 text-center border-t border-gray-200/50 dark:border-gray-800/50 pt-8 pb-4">
         <p className="text-gray-400 text-xs uppercase tracking-widest font-semibold">
           Career Compass AI • Enhanced Analysis Engine v2.0

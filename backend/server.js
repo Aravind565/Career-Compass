@@ -27,9 +27,6 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const PORT = process.env.PORT || 5000;
 
-// ==================== HELPER FUNCTIONS ====================
-
-// Text extraction function
 const extractText = async (file) => {
   try {
     console.log(`Extracting text from: ${file.originalname}, Type: ${file.mimetype}`);
@@ -45,7 +42,6 @@ const extractText = async (file) => {
         console.log("Standard PDF parse failed:", pdfError.message);
       }
       
-      // Fallback: Try to extract any text
       try {
         const text = file.buffer.toString('utf-8', 0, Math.min(file.buffer.length, 50000));
         if (text && text.length > 10) {
@@ -79,16 +75,11 @@ const extractText = async (file) => {
   }
 };
 
-
-// Replace your extractAllSkills function with this fixed version:
-
 function extractAllSkills(text) {
   if (!text || text.trim().length === 0) return [];
   
   const skills = [];
   const textLower = text.toLowerCase();
-  
-  // Define ALL categories with comprehensive skill lists
   const categories = {
     'Programming Languages': [
       // Core programming
@@ -247,18 +238,14 @@ function extractAllSkills(text) {
       'customer service', 'negotiation', 'decision making'
     ]
   };
-  
-  // Helper function to safely escape regex special characters
   function escapeRegex(str) {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
-  
-  // Extract skills with intelligent matching
+
   Object.entries(categories).forEach(([category, skillList]) => {
     skillList.forEach(skill => {
       const skillLower = skill.toLowerCase();
-      
-      // Special handling for short/single-letter skills
+
       if (skillLower.length <= 2) {
         const contextPatterns = {
           'c': ['c programming', 'c language', 'c++', 'c#'],
@@ -277,39 +264,35 @@ function extractAllSkills(text) {
           if (!hasContext) return;
         }
       }
-      
-      // Check if skill exists in text using simple string matching first
+
       if (textLower.includes(skillLower)) {
-        // For multi-word skills, ensure it's not a partial match
+
         if (skillLower.includes(' ')) {
-          // Check if it's mentioned as a complete phrase
           try {
             const phrasePattern = new RegExp(`\\b${escapeRegex(skillLower)}\\b`, 'i');
             if (!phrasePattern.test(text)) {
-              return; // Not a complete phrase match
+              return; 
             }
           } catch (regexError) {
-            // If regex fails, use simple includes check
             console.log(`Regex error for "${skillLower}": ${regexError.message}`);
-            // Still count it if it's in the text
+
           }
         } else {
-          // For single-word skills, check boundaries
+ 
           try {
             const wordPattern = new RegExp(`\\b${escapeRegex(skillLower)}\\b`, 'i');
             if (!wordPattern.test(text)) {
-              return; // Not a whole word match
+              return; 
             }
           } catch (regexError) {
-            // If regex fails, use simple includes check
             console.log(`Regex error for "${skillLower}": ${regexError.message}`);
-            // Still count it if it's in the text
+
           }
         }
         
-        // Format skill name properly
+
         let formattedName = skill.split(' ').map(word => {
-          // Handle special cases
+       
           if (word.toLowerCase() === 'c++') return 'C++';
           if (word.toLowerCase() === 'c#') return 'C#';
           if (word.toLowerCase() === '.net') return '.NET';
@@ -342,7 +325,7 @@ function extractAllSkills(text) {
           return word.charAt(0).toUpperCase() + word.slice(1);
         }).join(' ');
         
-        // Add to skills list if not already present
+
         if (!skills.find(s => s.name.toLowerCase() === formattedName.toLowerCase())) {
           skills.push({ 
             name: formattedName, 
@@ -352,8 +335,7 @@ function extractAllSkills(text) {
       }
     });
   });
-  
-  // Remove duplicates and sort by category
+
   const uniqueSkills = [];
   const seen = new Set();
   
@@ -367,7 +349,7 @@ function extractAllSkills(text) {
   
   return uniqueSkills;
 }
-// Improved score calculation
+
 const calculateScores = (presentSkills, missingSkills, requiredSkills) => {
   const totalRequired = requiredSkills.length || 1;
   const totalPresent = presentSkills.length;
@@ -412,7 +394,7 @@ function validateAndFixSkills(aiResponse, jobDesc, resumeText) {
   console.log(`Job skills (${jobSkills.length}):`, jobSkills.map(s => `${s.name} (${s.category})`));
   console.log(`Resume skills (${resumeSkills.length}):`, resumeSkills.map(s => `${s.name} (${s.category})`));
   
-  // Find exact matches (case-insensitive)
+
   const presentSkills = resumeSkills.filter(resumeSkill => {
     return jobSkills.some(jobSkill => 
       jobSkill.name.toLowerCase() === resumeSkill.name.toLowerCase() &&
@@ -511,7 +493,7 @@ function validateAndFixSkills(aiResponse, jobDesc, resumeText) {
     priority: idx === 0 ? "High" : idx === 1 ? "Medium" : "Low"
   }));
   
-  // Update AI guidance
+
   aiResponse.aiGuidance = `Career Match Analysis:\n\n`;
   
   if (isCrossDomain) {
@@ -531,59 +513,49 @@ function validateAndFixSkills(aiResponse, jobDesc, resumeText) {
   
   return aiResponse;
 }
-// ==================== FORMATTING FUNCTIONS ====================
 
-// Simple text cleaning
-
-// Simple text cleaning - FIXED
 function cleanSimpleText(text) {
   if (!text) return "";
   
   return text
-    // Remove all special formatting
-    .replace(/\$[0-9]+/g, '')        // Remove $1, $2, etc.
-    .replace(/\$\$/g, '')            // Remove $$
-    .replace(/\\[a-zA-Z]+\{.*?\}/g, '') // Remove LaTeX commands
-    .replace(/\\[a-zA-Z]+/g, '')     // Remove remaining LaTeX
-    
-    // Fix list formatting
-    .replace(/^([0-9]+)\.\s*$/gm, '')    // Remove empty numbered lines
-    .replace(/^([0-9]+)\.\s+/gm, '$1. ') // Fix numbered list spacing
-    
-    // Fix multiple newlines
+
+    .replace(/\$[0-9]+/g, '')      
+    .replace(/\$\$/g, '')            
+    .replace(/\\[a-zA-Z]+\{.*?\}/g, '')
+    .replace(/\\[a-zA-Z]+/g, '') 
+
+    .replace(/^([0-9]+)\.\s*$/gm, '')    
+    .replace(/^([0-9]+)\.\s+/gm, '$1. ') 
     .replace(/\n{3,}/g, '\n\n')
-    
-    // Fix spacing
+
     .replace(/\s+/g, ' ')
     .replace(/\n\s*\n/g, '\n\n')
     .trim();
 }
 
-// Format chat response
-// Format chat response - FIXED
 function formatSimpleResponse(text) {
   if (!text) return "";
   
   // First clean aggressively
   let cleaned = text
     // Remove ALL LaTeX/markdown/dollar signs
-    .replace(/\$[0-9]+/g, '')  // Remove $1, $2, etc.
-    .replace(/\$\$/g, '')       // Remove $$
-    .replace(/\$\w+/g, '')      // Remove $variables
-    .replace(/\*\*/g, '')       // Remove **bold**
-    .replace(/\*/g, '')         // Remove *italics*
-    .replace(/#/g, '')          // Remove # headers
-    .replace(/`/g, '')          // Remove `code`
-    .replace(/\[.*?\]\(.*?\)/g, '') // Remove [links](url)
+    .replace(/\$[0-9]+/g, '')  
+    .replace(/\$\$/g, '')       
+    .replace(/\$\w+/g, '')     
+    .replace(/\*\*/g, '')   
+    .replace(/\*/g, '')         
+    .replace(/#/g, '')         
+    .replace(/`/g, '')        
+    .replace(/\[.*?\]\(.*?\)/g, '') 
     
     // Fix numbered lists
-    .replace(/^([0-9]+)\.\s*$/gm, '')  // Remove numbers on separate lines
-    .replace(/^([0-9]+)\.\s+/gm, '$1. ') // Ensure space after number
+    .replace(/^([0-9]+)\.\s*$/gm, '')  
+    .replace(/^([0-9]+)\.\s+/gm, '$1. ') 
     
     // Fix LaTeX list patterns
-    .replace(/^\\item\s*/gm, '- ')     // Convert \item to bullet
-    .replace(/^\\begin\{.*?\}/gm, '')  // Remove \begin{}
-    .replace(/^\\end\{.*?\}/gm, '')    // Remove \end{}
+    .replace(/^\\item\s*/gm, '- ')    
+    .replace(/^\\begin\{.*?\}/gm, '') 
+    .replace(/^\\end\{.*?\}/gm, '')  
     
     // Remove any remaining special characters
     .replace(/[{}]/g, '')
@@ -606,7 +578,6 @@ function formatSimpleResponse(text) {
       continue;
     }
     
-    // Fix common issues
     line = line
       .replace(/^([0-9]+)\.\s*/g, '$1. ')  // Ensure proper numbered list format
       .replace(/^-\s*/g, '- ')             // Ensure proper bullet format
@@ -614,7 +585,6 @@ function formatSimpleResponse(text) {
       .replace(/^\*\s*/g, '- ')            // Convert * to -
       .replace(/^>\s*/g, '')               // Remove blockquote >
       
-      // Fix spacing after punctuation
       .replace(/([.!?])([A-Z])/g, '$1 $2')
       .replace(/([.!?])\s*$/g, '$1');
     
@@ -623,18 +593,14 @@ function formatSimpleResponse(text) {
   
   return formattedLines.join('\n');
 }
-// ==================== CRITICAL FORMATTING FIX ====================
 
-// This function MUST be called on ALL AI responses before sending to frontend
-
-// SUPER AGGRESSIVE formatting fix
 function fixAIResponseFormatting(text) {
   if (!text) return "";
   
   console.log("BEFORE FORMATTING:", text.substring(0, 300));
   
   let fixed = text
-    // Remove ALL special formatting first
+    // Remove ALL special formatting
     .replace(/\$\d+/g, '')
     .replace(/\$\$/g, '')
     .replace(/\*\*/g, '')
@@ -643,7 +609,6 @@ function fixAIResponseFormatting(text) {
     .replace(/##+/g, '')
     .replace(/\[.*?\]\(.*?\)/g, '')
     
-    // THE CRITICAL FIX: Handle ALL variations of separated numbers
     // Pattern 1: "1.\nText" or "1.\n  Text"
     .replace(/(\d+)\.\s*\n+\s*/g, '$1. ')
     
@@ -683,10 +648,6 @@ function fixAIResponseFormatting(text) {
   
   return fixed;
 }
-// ==================== SIMPLE FALLBACK RESPONSES ====================
-
-
-// Updated generateSimpleFallback - handles day plans specially
 function generateSimpleFallback(userMessage, analysisSummary) {
   const lowerMsg = userMessage.toLowerCase();
   
@@ -754,7 +715,6 @@ function generateSimpleFallback(userMessage, analysisSummary) {
   return `I can help with:\n- Skill gap analysis and learning plans\n- Resume optimization tips\n- Interview preparation\n- Career strategy advice\n\nWhat would you like to focus on?`;
 }
 
-// NEW FUNCTION: Generate learning plans of any length
 function generateLearningPlan(days, skills) {
   if (days <= 3) {
     return `Here's a ${days}-day quick start plan:\n\n1. Day 1 - Research ${skills} basics and install free CAD software (Tinkercad/Fusion 360)\n2. Day 2 - Complete first tutorial course module\n3. Day 3 - Create a simple practice project\n\nFocus on fundamentals first.`;
@@ -776,7 +736,6 @@ function generateLearningPlan(days, skills) {
   }
 }
 
-// Enhanced fallback analysis function
 function generateFallbackAnalysis(jobDesc, resumeText) {
   console.log("Generating enhanced fallback analysis...");
   
@@ -912,10 +871,6 @@ function generateFallbackAnalysis(jobDesc, resumeText) {
   };
 }
 
-// ==================== MAIN ENDPOINTS ====================
-// ==================== SIMPLIFIED PROMPT FUNCTIONS ====================
-
-// Use this simplified system prompt for better JSON compliance
 const createAnalysisPrompt = (jobDesc, resumeText) => {
   return `You are an expert career analyst. Analyze this resume against the job description.
 
@@ -956,7 +911,6 @@ IMPORTANT:
 - Base your analysis only on the provided resume and job description.`;
 };
 
-// ==================== FIXED ANALYSIS ENDPOINT ====================
 
 app.post("/analyze", upload.single("resume"), async (req, res) => {
   console.log("=== ANALYSIS REQUEST ===");
@@ -1005,7 +959,7 @@ app.post("/analyze", upload.single("resume"), async (req, res) => {
 
     console.log("Proceeding with AI analysis...");
     
-    // Try Groq API first
+    // Try Groq API
     try {
       const systemPrompt = createAnalysisPrompt(jobDescription, resumeText);
       
@@ -1038,14 +992,12 @@ app.post("/analyze", upload.single("resume"), async (req, res) => {
       
       let jsonResponse;
       try {
-        // Try to parse the JSON
         jsonResponse = JSON.parse(content);
         console.log("Successfully parsed JSON response");
       } catch (parseError) {
         console.error("JSON parse error:", parseError.message);
         console.log("Raw content:", content);
-        
-        // Try to extract JSON from the response
+
         const jsonMatch = content.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           try {
@@ -1058,16 +1010,10 @@ app.post("/analyze", upload.single("resume"), async (req, res) => {
           throw new Error("No JSON found in AI response");
         }
       }
-
-      // Validate required fields
       if (!jsonResponse.score || !jsonResponse.skills) {
         throw new Error("Incomplete JSON response from AI");
       }
-
-      // Apply skill validation and fixing
       jsonResponse = validateAndFixSkills(jsonResponse, jobDescription, resumeText);
-
-      // Build final response
       const finalResponse = {
         score: parseFloat(jsonResponse.score) || 0,
         atsScore: parseFloat(jsonResponse.atsScore) || 0,
@@ -1097,15 +1043,13 @@ app.post("/analyze", upload.single("resume"), async (req, res) => {
 
     } catch (apiError) {
       console.error("Groq API Error:", apiError.message);
-      
-      // Check for specific API errors
+
       if (apiError.message.includes('rate_limit') || apiError.message.includes('429')) {
         console.log("Rate limit exceeded, using fallback analysis...");
       } else if (apiError.message.includes('json_validate_failed') || apiError.message.includes('JSON')) {
         console.log("JSON validation failed, using fallback analysis...");
       }
-      
-      // Use fallback analysis
+
       const fallbackAnalysis = generateFallbackAnalysis(jobDescription, resumeText);
       fallbackAnalysis.summary = "⚠️ Basic analysis completed. For detailed AI insights, please try again. " + fallbackAnalysis.summary;
       fallbackAnalysis.metadata.note = "Used fallback due to API error: " + apiError.message;
@@ -1121,9 +1065,6 @@ app.post("/analyze", upload.single("resume"), async (req, res) => {
     });
   }
 });
-
-// ==================== IMPROVED FALLBACK ANALYSIS ====================
-
 
 app.post("/ai-chat", async (req, res) => {
   console.log("=== AI CHAT REQUEST ===");
@@ -1144,8 +1085,7 @@ app.post("/ai-chat", async (req, res) => {
   }
 
   const lowerMsg = userMessage.toLowerCase().trim();
-  
-  // Check for simple greetings
+
   const simpleGreetings = ['thank you', 'thanks', 'hello', 'hi', 'hey', 'bye', 'goodbye', 'help', 'ok', 'okay'];
   
   if (simpleGreetings.includes(lowerMsg)) {
@@ -1156,8 +1096,7 @@ app.post("/ai-chat", async (req, res) => {
       source: "greeting-response"
     });
   }
-  
-  // Check if it's a day plan request - handle specially
+
   const dayPlanMatch = lowerMsg.match(/(\d+)\s*days?\s*plan/);
   if (dayPlanMatch) {
     const days = parseInt(dayPlanMatch[1]);
@@ -1170,14 +1109,12 @@ app.post("/ai-chat", async (req, res) => {
       source: "structured-plan"
     });
   }
-
-  // Determine max tokens based on query type
-  let maxTokens = 500; // Default
+  let maxTokens = 500; 
   
   if (lowerMsg.includes('plan') && lowerMsg.match(/\d+/)) {
-    maxTokens = 800; // Longer for plans
+    maxTokens = 800;
   } else if (lowerMsg.includes('resume') || lowerMsg.includes('interview')) {
-    maxTokens = 600; // Medium for detailed advice
+    maxTokens = 600; 
   }
 
   const systemPrompt = `You are Career Compass AI. Give concise career advice.
@@ -1226,8 +1163,7 @@ Now answer: "${userMessage}"`;
       aiResponse = generateSimpleFallback(userMessage, analysisSummary);
     } else {
       aiResponse = fixAIResponseFormatting(aiResponse);
-      
-      // Safety check
+
       if (aiResponse.match(/^\d+\.\s*$/m)) {
         console.log("Formatting still broken, using fallback");
         aiResponse = generateSimpleFallback(userMessage, analysisSummary);
@@ -1252,9 +1188,7 @@ Now answer: "${userMessage}"`;
     });
   }
 });
-// ==================== EXPORT ENDPOINTS ====================
 
-// Export endpoint
 app.post("/export-analysis", async (req, res) => {
   try {
     const { analysis, format } = req.body;
@@ -1298,7 +1232,6 @@ app.post("/export-analysis", async (req, res) => {
   }
 });
 
-// Helper for TXT export
 function generateTxtAnalysis(analysis) {
   let txt = `CAREER COMPASS - ANALYSIS REPORT\n`;
   txt += `================================================\n\n`;
@@ -1344,7 +1277,6 @@ function generateTxtAnalysis(analysis) {
   return txt;
 }
 
-// Helper for PDF export
 async function generatePdfAnalysis(analysis) {
   try {
     const pdfDoc = await PDFDocument.create();
@@ -1355,8 +1287,6 @@ async function generatePdfAnalysis(analysis) {
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     
     let y = height - 50;
-    
-    // Title
     page.drawText('CAREER COMPASS - ANALYSIS REPORT', {
       x: 50,
       y,
@@ -1366,8 +1296,6 @@ async function generatePdfAnalysis(analysis) {
     });
     
     y -= 30;
-    
-    // Date
     page.drawText(`Generated: ${new Date().toLocaleString()}`, {
       x: 50,
       y,
@@ -1377,8 +1305,7 @@ async function generatePdfAnalysis(analysis) {
     });
     
     y -= 40;
-    
-    // Add content
+
     const txtContent = generateTxtAnalysis(analysis);
     const lines = txtContent.split('\n');
     
@@ -1423,9 +1350,6 @@ async function generatePdfAnalysis(analysis) {
   }
 }
 
-// ==================== TEST ENDPOINTS ====================
-
-// Health check
 app.get("/health", (req, res) => {
   res.json({ 
     status: "ok", 
@@ -1435,7 +1359,6 @@ app.get("/health", (req, res) => {
   });
 });
 
-// Test endpoint
 app.get("/test", (req, res) => {
   res.json({ 
     message: "Career Compass API v1.3.0",

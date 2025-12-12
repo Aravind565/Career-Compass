@@ -13,7 +13,7 @@ const App = () => {
   const [error, setError] = useState('');
   const [previousScore, setPreviousScore] = useState(undefined);
   const [showHistory, setShowHistory] = useState(false);
-  const [activeView, setActiveView] = useState('input'); // 'input', 'results', 'aiInsights'
+  const [activeView, setActiveView] = useState('input');
   const [conversationData, setConversationData] = useState({
     jobDesc: '',
     resumeText: '',
@@ -22,7 +22,6 @@ const App = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [resumeText, setResumeText] = useState("");
 
-  // Theme handling
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') || 'light';
     setTheme(savedTheme);
@@ -52,8 +51,6 @@ const App = () => {
     
     try {
       const formData = new FormData();
-      
-      // Use correct field name
       formData.append('jobDescription', jobDescription);
       
       if (userQuestion) {
@@ -66,38 +63,23 @@ const App = () => {
         formData.append('resumeText', resumeTextContent);
       }
 
-      console.log('Sending analysis request...');
-      
       const API_URL = 'http://localhost:5000';
-      
       const response = await fetch(`${API_URL}/analyze`, {
         method: 'POST',
         body: formData,
       });
 
-      console.log('Response status:', response.status);
-      
       if (!response.ok) {
-        // Check if it's HTML error page
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('text/html')) {
-          throw new Error('Server error - check backend logs');
-        }
-        
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `Server error ${response.status}`);
       }
       
       const data = await response.json();
-      console.log('Analysis successful:', data);
 
-    // Store previous score for comparison - ADD THIS CHECK
-    if (result && typeof result.score === 'number') {
-      setPreviousScore(Number(result.score)); // ← Ensure it's a number
-    }
+      if (result && typeof result.score === 'number') {
+        setPreviousScore(Number(result.score));
+      }
 
-
-      // Store conversation data for AI Insights
       let extractedResumeText = '';
       if (file) {
         try {
@@ -137,18 +119,14 @@ const App = () => {
     try {
       const response = await fetch('http://localhost:5000/export-analysis', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           analysis: result,
           format: format
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Export failed');
-      }
+      if (!response.ok) throw new Error('Export failed');
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -183,9 +161,7 @@ const App = () => {
       conversationHistory: []
     };
 
-    const blob = new Blob([JSON.stringify(conversationExport, null, 2)], {
-      type: 'application/json'
-    });
+    const blob = new Blob([JSON.stringify(conversationExport, null, 2)], { type: 'application/json' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -204,18 +180,6 @@ const App = () => {
     setActiveView('input');
   };
 
-  const handleOpenAIChat = () => {
-    setActiveView('aiInsights');
-  };
-
-  const handleBackToResults = () => {
-    setActiveView('results');
-  };
-
-  const clearError = () => {
-    setError('');
-  };
-
   return (
     <div className={`min-h-screen transition-colors duration-300 ${
       theme === 'dark' 
@@ -226,7 +190,6 @@ const App = () => {
         theme={theme}
         toggleTheme={toggleTheme}
         toggleHistory={() => setShowHistory(!showHistory)}
-        showHistoryBadge={false}
         onNewAnalysis={handleNewAnalysis}
       />
 
@@ -240,7 +203,7 @@ const App = () => {
             onAnalyze={handleAnalyze}
             loading={loading}
             error={error}
-            onErrorClear={clearError}
+            onErrorClear={() => setError('')}
             setSelectedFile={setSelectedFile}
             setResumeText={setResumeText}
           />
@@ -254,7 +217,7 @@ const App = () => {
             onExport={handleExport}
             jobDescription={jobDescription}
             resumeText={conversationData.resumeText}
-            onOpenAIChat={handleOpenAIChat}
+            onOpenAIChat={() => setActiveView('aiInsights')}
           />
         )}
 
@@ -265,12 +228,11 @@ const App = () => {
             resumeText={conversationData.fileContent || conversationData.resumeText}
             initialQuestion={userQuestion}
             onExport={handleExportConversation}
-            onBack={handleBackToResults}
+            onBack={() => setActiveView('results')}
           />
         )}
       </main>
 
-      {/* Footer */}
       <footer className="py-6 px-4 border-t border-gray-200/50 dark:border-gray-800/50">
         <div className="max-w-7xl mx-auto text-center">
           <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -282,7 +244,6 @@ const App = () => {
         </div>
       </footer>
 
-      {/* Loading Overlay */}
       {loading && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-md w-full mx-4">
@@ -297,8 +258,8 @@ const App = () => {
               </p>
               <div className="mt-6 flex gap-2">
                 <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
-                <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse delay-75"></div>
+                <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse delay-150"></div>
               </div>
             </div>
           </div>

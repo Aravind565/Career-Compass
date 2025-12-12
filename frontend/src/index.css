@@ -1,4 +1,3 @@
-/* Your existing Tailwind directives */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,13 +7,12 @@
     @apply antialiased;
   }
   
-  /* For dark mode transitions */
   * {
     @apply transition-colors duration-200;
   }
 }
 
-/* Custom scrollbar */
+
 ::-webkit-scrollbar {
   width: 10px;
 }
@@ -31,12 +29,11 @@
   @apply from-blue-600 to-purple-600;
 }
 
-/* Glass effect */
 .glass {
   @apply backdrop-blur-xl bg-white/10 dark:bg-gray-900/10;
 }
 
-/* Animation classes */
+
 @layer utilities {
   .animate-blob {
     animation: blob 7s infinite;
@@ -62,7 +59,6 @@
     backdrop-filter: blur(24px);
   }
   
-  /* Hide scrollbar but keep functionality */
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -73,7 +69,6 @@
   }
 }
 
-/* Keyframe animations */
 @keyframes blob {
   0% {
     transform: translate(0px, 0px) scale(1);
@@ -100,8 +95,6 @@
   }
 }
 
-/* ========== ADD THIS NEW SECTION ========== */
-/* Custom typography for AI messages */
 .prose-custom {
   line-height: 1.6;
 }

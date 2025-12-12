@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { 
-  Upload, FileText, Briefcase, Sparkles, X, File as FileIcon, 
+  Upload, FileText, Briefcase, Sparkles, X, 
   Type, CheckCircle, AlertTriangle, ArrowRight 
 } from 'lucide-react';
 
@@ -14,14 +14,12 @@ const InputSection = ({
   setSelectedFile,
   setResumeText
 }) => {
+  const fileInputRef = useRef(null);
   const [file, setFile] = useState(null);
   const [resumeTextLocal, setResumeTextLocal] = useState("");
-  const [resumeMode, setResumeMode] = useState('upload'); // 'upload' | 'text'
+  const [resumeMode, setResumeMode] = useState('upload');
   const [dragActive, setDragActive] = useState(false);
-  const [localError, setLocalError] = useState(null); // For validation errors
-  const fileInputRef = useRef(null);
-
-  // --- Handlers ---
+  const [localError, setLocalError] = useState(null);
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -31,6 +29,32 @@ const InputSection = ({
     } else if (e.type === "dragleave") {
       setDragActive(false);
     }
+  };
+
+  const validateAndSetFile = (uploadedFile) => {
+    setLocalError(null);
+    onErrorClear?.();
+
+    if (uploadedFile.size > 10 * 1024 * 1024) {
+      setLocalError("File size exceeds 10MB limit.");
+      return;
+    }
+
+    const validTypes = [
+      'application/pdf', 
+      'text/plain', 
+      'application/msword', 
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+    
+    const isTxt = uploadedFile.name.toLowerCase().endsWith('.txt');
+    if (!validTypes.includes(uploadedFile.type) && !isTxt) {
+      setLocalError("Invalid file type. Please upload PDF, DOCX, or TXT.");
+      return;
+    }
+
+    setFile(uploadedFile);
+    if (setSelectedFile) setSelectedFile(uploadedFile);
   };
 
   const handleDrop = (e) => {
@@ -46,34 +70,6 @@ const InputSection = ({
     if (e.target.files && e.target.files[0]) {
       validateAndSetFile(e.target.files[0]);
     }
-  };
-
-  const validateAndSetFile = (uploadedFile) => {
-    setLocalError(null);
-    onErrorClear?.();
-
-    // Size limit (10MB)
-    if (uploadedFile.size > 10 * 1024 * 1024) {
-      setLocalError("File size exceeds 10MB limit.");
-      return;
-    }
-
-    const validTypes = [
-      'application/pdf', 
-      'text/plain', 
-      'application/msword', 
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    ];
-    
-    // Check type or extension
-    const isTxt = uploadedFile.name.toLowerCase().endsWith('.txt');
-    if (!validTypes.includes(uploadedFile.type) && !isTxt) {
-      setLocalError("Invalid file type. Please upload PDF, DOCX, or TXT.");
-      return;
-    }
-
-    setFile(uploadedFile);
-    if (setSelectedFile) setSelectedFile(uploadedFile);
   };
 
   const handleResumeTextChange = (text) => {
@@ -107,7 +103,7 @@ const InputSection = ({
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-500">
       
-      {/* 1. Hero Header */}
+      {/* Hero Header */}
       <div className="text-center mb-12 relative">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-indigo-500/10 dark:bg-indigo-500/20 rounded-full blur-[100px] -z-10" />
         
@@ -125,14 +121,13 @@ const InputSection = ({
         </p>
       </div>
 
-      {/* 2. Main Input Card */}
+      {/* Main Input Card */}
       <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-xl rounded-[2rem] border border-white/40 dark:border-gray-700/40 shadow-2xl p-6 md:p-10 relative overflow-hidden">
-        {/* Decorative elements */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 rounded-full blur-3xl -z-10" />
         
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
           
-          {/* LEFT: Job Description */}
+          {/* Job Description Section */}
           <div className="flex flex-col h-full">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400">
@@ -162,7 +157,7 @@ const InputSection = ({
             </div>
           </div>
 
-          {/* RIGHT: Resume Input */}
+          {/* Resume Section */}
           <div className="flex flex-col h-full">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
@@ -175,7 +170,7 @@ const InputSection = ({
                 </div>
               </div>
 
-              {/* Toggle Switch */}
+              {/* Mode Toggle */}
               <div className="flex p-1 bg-gray-100 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600">
                 <button
                   onClick={() => setResumeMode('upload')}
@@ -298,10 +293,8 @@ const InputSection = ({
           </div>
         </div>
 
-        {/* 3. Action Footer */}
+        {/* Action Footer */}
         <div className="mt-10 flex flex-col items-center">
-          
-          {/* Error Message */}
           {(localError || error) && (
             <div className="mb-6 animate-in slide-in-from-top-2 fade-in">
               <div className="flex items-center gap-3 px-5 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-300 shadow-sm">
@@ -317,7 +310,6 @@ const InputSection = ({
             </div>
           )}
 
-          {/* Analyze Button */}
           <button
             onClick={handleAnalyzeClick}
             disabled={loading || !isReady}

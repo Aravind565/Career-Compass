@@ -1,18 +1,12 @@
 import React from 'react';
 import { Briefcase, Sun, Moon, Sparkles } from 'lucide-react';
 
-const Header = ({ 
-  theme, 
-  toggleTheme, 
-  onNewAnalysis 
-}) => {
-  
+const Header = ({ theme, toggleTheme, onNewAnalysis }) => {
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 transition-all duration-300 backdrop-blur-xl bg-white/70 dark:bg-gray-900/70 border-b border-gray-200/50 dark:border-gray-800/50 supports-[backdrop-filter]:bg-white/50">
+    <header className="fixed top-0 left-0 right-0 z-50 transition-all duration-300 backdrop-blur-xl bg-white/70 dark:bg-gray-900/70 border-b border-gray-200/50 dark:border-gray-800/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20">
           
-          {/* Logo/Brand Area */}
           <div 
             className="flex items-center gap-3 cursor-pointer group select-none"
             onClick={onNewAnalysis}
@@ -34,10 +28,7 @@ const Header = ({
             </div>
           </div>
 
-          {/* Right Actions */}
           <div className="flex items-center gap-2 sm:gap-4">
-            
-            {/* New Analysis Button */}
             <button
               onClick={onNewAnalysis}
               className="flex items-center gap-2 px-3 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-white bg-gray-900 dark:bg-white dark:text-gray-900 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-all shadow-lg hover:shadow-xl active:scale-95 group"
@@ -47,7 +38,6 @@ const Header = ({
               <span className="sm:hidden">New</span>
             </button>
 
-            {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
               className="p-2 sm:p-2.5 rounded-xl text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-all active:scale-95 border border-transparent hover:border-gray-200 dark:hover:border-gray-700"
