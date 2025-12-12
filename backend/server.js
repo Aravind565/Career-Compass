@@ -18,9 +18,11 @@ const upload = multer({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: '*',
   credentials: true
 }));
+
+
 
 // Initialize Groq
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -1373,7 +1375,7 @@ app.get("/test", (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`✅ Server running on http://localhost:${PORT}`);
+  console.log(`✅ Server running`);
   console.log(`📝 Endpoints:`);
   console.log(`   POST /analyze - Resume analysis`);
   console.log(`   POST /ai-chat - AI career coach`);

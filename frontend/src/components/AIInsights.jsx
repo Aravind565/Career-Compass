@@ -181,17 +181,24 @@ const AIInsights = ({
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:5000/ai-chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jobDesc: jobDescription || '',
-          resumeText: resumeText || '',
-          userMessage: userMsg.text,
-          analysisSummary: analysis,
-          conversation: messages.slice(-3).map(m => ({ sender: m.sender, text: m.text.substring(0, 300) }))
-        })
-      });
+    const response = await fetch(
+  `${import.meta.env.VITE_BACKEND_URL}/ai-chat`,
+  {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jobDesc: jobDescription || '',
+      resumeText: resumeText || '',
+      userMessage: userMsg.text,
+      analysisSummary: analysis,
+      conversation: messages.slice(-3).map(m => ({
+        sender: m.sender,
+        text: m.text.substring(0, 300)
+      }))
+    })
+  }
+);
+
 
       if (!response.ok) throw new Error('API Error');
       const data = await response.json();

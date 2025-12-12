@@ -63,11 +63,12 @@ const App = () => {
         formData.append('resumeText', resumeTextContent);
       }
 
-      const API_URL = 'http://localhost:5000';
-      const response = await fetch(`${API_URL}/analyze`, {
-        method: 'POST',
-        body: formData,
-      });
+const API_URL = import.meta.env.VITE_BACKEND_URL;
+const response = await fetch(`${API_URL}/analyze`, {
+  method: 'POST',
+  body: formData,
+});
+
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -117,14 +118,14 @@ const App = () => {
     if (!result) return;
 
     try {
-      const response = await fetch('http://localhost:5000/export-analysis', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          analysis: result,
-          format: format
-        }),
-      });
+   const response = await fetch(`${API_URL}/export-analysis`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    analysis: result,
+    format: format
+  }),
+});
 
       if (!response.ok) throw new Error('Export failed');
 
