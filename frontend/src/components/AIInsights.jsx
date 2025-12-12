@@ -371,39 +371,54 @@ const AIInsights = ({
           </div>
         )}
 
-        {/* Input Area */}
-        <div className="p-4 border-t border-border/50 bg-background/50">
-          <div className="flex gap-3">
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && !isLoading && sendMessage()}
-                placeholder="Ask about your career fit..."
-                className="w-full px-4 py-3 pl-12 bg-card/80 border rounded-xl focus:ring-2 focus:ring-primary/30 outline-none transition-all"
-                disabled={isLoading}
-              />
-              <Bot className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            </div>
-            <button
-              onClick={() => sendMessage()}
-              disabled={isLoading || !inputMessage.trim()}
-              className="px-6 py-3 bg-gradient-to-r from-primary to-secondary text-primary-foreground rounded-xl hover:opacity-90 disabled:opacity-50 transition-all flex items-center gap-2"
-            >
-              <Send className="w-4 h-4" /> <span className="hidden sm:inline">Send</span>
-            </button>
-          </div>
+       {/* Input Area */}
+<div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl">
+  <div className="flex gap-3">
 
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            {suggestedTopics.map((topic, i) => (
-              <button key={i} onClick={() => sendMessage(topic.query, true)} className="flex items-center gap-2 px-3 py-2 bg-card/50 hover:bg-card border rounded-lg transition-all text-xs group">
-                <div className="p-1.5 bg-primary/10 rounded-lg group-hover:bg-primary/20"><topic.icon className="w-3 h-3 text-primary" /></div>
-                <span className="truncate">{topic.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+    {/* Text Input */}
+    <div className="flex-1 relative">
+      <input
+        type="text"
+        value={inputMessage}
+        onChange={(e) => setInputMessage(e.target.value)}
+        onKeyPress={(e) => e.key === 'Enter' && !isLoading && sendMessage()}
+        placeholder="Ask about your career fit..."
+        className="
+          w-full px-4 py-3 pl-12 
+          bg-gray-100 dark:bg-gray-800 
+          text-gray-900 dark:text-white
+          border border-gray-300 dark:border-gray-700
+          rounded-xl 
+          focus:ring-2 focus:ring-indigo-500/40
+          outline-none transition-all
+        "
+        disabled={isLoading}
+      />
+      <Bot className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 dark:text-gray-400" />
+    </div>
+
+    {/* Send Button */}
+    <button
+      onClick={() => sendMessage()}
+      disabled={isLoading || !inputMessage.trim()}
+      className="
+        px-6 py-3 
+        bg-gradient-to-r from-indigo-600 to-purple-600 
+        text-white 
+        rounded-xl 
+        hover:opacity-90 
+        disabled:opacity-50 
+        transition-all 
+        flex items-center gap-2
+      "
+    >
+      <Send className="w-4 h-4" />
+      <span className="hidden sm:inline">Send</span>
+    </button>
+
+  </div>
+</div>
+
       </div>
 
       {/* Footer Tips */}
