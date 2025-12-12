@@ -1,74 +1,78 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from "react";
 import {
-  MessageSquare, Send, Bot, User, Sparkles, RefreshCw,
-  Download, Copy, ThumbsUp, ThumbsDown, BookOpen,
-  ChevronRight, Lightbulb, Target, Clock, Zap, ArrowLeft
-} from 'lucide-react';
+  MessageSquare,
+  Send,
+  Bot,
+  User,
+  Sparkles,
+  RefreshCw,
+  Download,
+  Copy,
+  ThumbsUp,
+  ThumbsDown,
+  BookOpen,
+  ChevronRight,
+  Lightbulb,
+  Target,
+  Clock,
+  Zap,
+  ArrowLeft,
+} from "lucide-react";
 
-// Helper to format text with basic markdown-like features
-const formatMessageText = (text) => {
+/* Small helper: keep your existing formatMessageText logic (slightly adjusted) */
+const formatMessageText = (text, isUser = false) => {
   if (!text) return null;
-  
-  const lines = text.split('\n');
+  const lines = text.split("\n");
   const elements = [];
+
+  const userText = "text-white";
+  const aiText = "text-gray-800 dark:text-gray-200";
+  const finalText = isUser ? userText : aiText;
 
   lines.forEach((line, index) => {
     const trimmed = line.trim();
     if (!trimmed) {
-      if (elements.length > 0 && index < lines.length - 1) {
-        elements.push(<div key={`space-${index}`} className="h-3" />);
-      }
+      elements.push(<div key={`space-${index}`} className="h-2" />);
       return;
     }
 
-    // Numbered lists
+    // Numbered list
     const numberMatch = trimmed.match(/^(\d+)\.\s+(.+)$/);
     if (numberMatch) {
       const [, number, content] = numberMatch;
       elements.push(
         <div key={`num-${index}`} className="flex items-start gap-2 mb-2 ml-1">
-          <span className="font-medium text-blue-500 min-w-6">{number}.</span>
-          <span className="text-gray-700 dark:text-gray-300 flex-1">{content}</span>
+          <span className={`font-medium min-w-[1.25rem] ${finalText}`}>{number}.</span>
+          <span className={finalText}>{content}</span>
         </div>
       );
       return;
     }
 
-    // Bullet points
-    if (trimmed.startsWith('- ')) {
+    // Bullet
+    if (trimmed.startsWith("- ")) {
       elements.push(
         <div key={`bullet-${index}`} className="flex items-start gap-2 mb-2 ml-1">
-          <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1.5 flex-shrink-0" />
-          <span className="text-gray-700 dark:text-gray-300">{trimmed.substring(2).trim()}</span>
+          <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${isUser ? "bg-white" : "bg-indigo-500"}`} />
+          <span className={finalText}>{trimmed.substring(2).trim()}</span>
         </div>
       );
       return;
     }
 
-    // Checkmarks
-    if (/^[✅✓✔]/.test(trimmed)) {
+    // Header (like “Strengths:”)
+    if (trimmed.endsWith(":") && trimmed.length < 120) {
       elements.push(
-        <div key={`check-${index}`} className="flex items-start gap-2 mb-2">
-          <span className="text-green-500">✓</span>
-          <span className="text-gray-700 dark:text-gray-300">{trimmed.substring(2).trim()}</span>
-        </div>
+        <h4 key={`header-${index}`} className={`font-semibold mt-3 mb-2 ${finalText}`}>
+          {trimmed.replace(":", "")}
+        </h4>
       );
       return;
     }
 
-    // Headers
-    if (trimmed.endsWith(':') && trimmed.length < 100) {
-      elements.push(
-        <h3 key={`header-${index}`} className="font-bold text-gray-800 dark:text-white mt-4 mb-2">
-          {trimmed}
-        </h3>
-      );
-      return;
-    }
-
-    // Paragraphs
+    // Paragraph
     elements.push(
-      <p key={`para-${index}`} className="mb-2 text-gray-700 dark:text-gray-300 leading-relaxed">
+      <p key={`p-${index}`} className={`leading-relaxed mb-2 ${finalText}`}>
         {trimmed}
       </p>
     );
@@ -77,359 +81,434 @@ const formatMessageText = (text) => {
   return elements;
 };
 
+
 const AIInsights = ({
   analysis,
   jobDescription,
   resumeText,
   initialQuestion = null,
   onExport = () => {},
-  onBack = () => {}
+  onBack = () => {},
 }) => {
   const messagesEndRef = useRef(null);
-  const [inputMessage, setInputMessage] = useState('');
+  const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
 
   const getWelcomeMessage = () => {
-    let msg = "Hi! I'm Career Compass AI.\n\n";
-    
+    let msg = "Hi — I'm Career Compass AI.\n\n";
     if (analysis && jobDescription && resumeText) {
-      msg += "I've analyzed your resume against the job description.\n\n";
-      msg += `Your Match Score: ${analysis.score || 'N/A'}/10 (${analysis.matchLevel || 'Not rated'})\n`;
-      msg += `Experience Level: ${analysis.experienceLevel || 'Not specified'}\n`;
-      
-      if (analysis.skills?.present?.length > 0) {
-        msg += `Your Key Strengths: ${analysis.skills.present.slice(0, 3).map(s => s.name).join(', ')}\n`;
+      msg += "I've analyzed your resume for this job.\n\n";
+      msg += `Match Score: ${analysis.score ?? "N/A"}/10 (${analysis.matchLevel ?? "Not rated"})\n`;
+      msg += `Experience: ${analysis.experienceLevel ?? "Not specified"}\n\n`;
+      if (analysis.skills?.present?.length) {
+        msg += `Strengths: ${analysis.skills.present.slice(0, 3).map((s) => s.name).join(", ")}\n`;
       }
-      
-      if (analysis.skills?.missing?.length > 0) {
-        msg += `Areas to Develop: ${analysis.skills.missing.slice(0, 3).map(s => s.name).join(', ')}\n\n`;
+      if (analysis.skills?.missing?.length) {
+        msg += `Gaps: ${analysis.skills.missing.slice(0, 3).map((s) => s.name).join(", ")}\n\n`;
       }
-      msg += "I'm here to provide career advice based on your resume and this job.\n\n";
+      msg += "Ask me anything about improving your fit or resume.\n\n";
     } else {
-      msg += "I'm here to provide career advice.\n\n";
+      msg += "I can help with resume tips, skill gaps, and interview prep.\n\n";
     }
-    
-    msg += "What would you like to know? For example:\n";
+
+    msg += "Example prompts:\n";
     msg += "- How can I better match this job?\n";
     msg += "- What skills should I prioritize?\n";
     msg += "- How should I update my resume?";
-    
     return msg;
   };
 
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      text: initialQuestion || getWelcomeMessage(),
-      sender: 'ai',
-      timestamp: new Date(),
-      type: 'welcome'
-    }
-  ]);
-
-  const quickQuestions = [
-    "How can I better match this job?",
-    "What skills should I prioritize learning?",
-    "What's my biggest strength for this role?",
-    "How should I update my resume?",
-    "Can you help with interview prep?",
-    "What's my experience level for this job?",
-    "How to address my skill gaps?"
-  ];
-
-  const suggestedTopics = [
-    { icon: BookOpen, label: "Skill Gap Analysis", query: "Analyze my skill gaps in detail" },
-    { icon: Target, label: "Resume Optimization", query: "How can I optimize my resume for this job?" },
-    { icon: Clock, label: "Learning Timeline", query: "Create a 30-day learning plan for me" },
-    { icon: Zap, label: "Interview Prep", query: "What interview questions should I expect?" }
-  ];
+  useEffect(() => {
+    // initial message
+    setMessages([
+      {
+        id: "welcome-1",
+        sender: "ai",
+        text: initialQuestion || getWelcomeMessage(),
+        timestamp: new Date().toISOString(),
+        type: "welcome",
+      },
+    ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, isLoading]);
 
+  // small fallback generator (keeps previous logic)
   const generateFallbackResponse = (query) => {
     const lower = query.toLowerCase();
-    const missing = analysis?.skills?.missing?.slice(0, 3).map(s => s.name).join(', ') || 'technical skills';
-    const present = analysis?.skills?.present?.slice(0, 3).map(s => s.name).join(', ') || 'core competencies';
+    const missing = (analysis?.skills?.missing ?? []).slice(0, 3).map((s) => s.name).join(", ") || "some skills";
+    const present = (analysis?.skills?.present ?? []).slice(0, 3).map((s) => s.name).join(", ") || "your strengths";
 
-    if (lower.includes('strength') || lower.includes('strong')) {
-      return `Your key strengths: ${present}\n\nThese align well with the job requirements. Focus on highlighting these in your application.`;
+    if (lower.includes("strength") || lower.includes("strong")) {
+      return `Key strengths: ${present}\n\nHighlight these prominently in your resume and examples.`;
     }
-    if (lower.includes('gap') || lower.includes('missing') || lower.includes('improve')) {
-      return `Skills to develop: ${missing}\n\nAction plan:\n- Take online courses on these topics\n- Build a project using these skills\n- Practice with coding challenges`;
+    if (lower.includes("gap") || lower.includes("missing") || lower.includes("improve")) {
+      return `Skills to develop: ${missing}\n\nSuggested actions:\n- Take short online courses\n- Build small projects using these skills\n- Add them as keywords in your resume where relevant`;
     }
-    if (lower.includes('resume') || lower.includes('cv')) {
-      return `Resume optimization tips:\n\n1. Use exact keywords from job description\n2. Quantify achievements with numbers\n3. List relevant technologies prominently`;
+    if (lower.includes("resume") || lower.includes("cv")) {
+      return `Resume tips:\n1. Use exact keywords from the job description\n2. Quantify your achievements with numbers\n3. Put relevant tech near the top of each role`;
     }
-    
-    return "I can assist with career fit, skill development, and interview prep. What specific area would you like to focus on?";
+    return "I can help with skill gaps, resume edits, or interview prep — what would you like to focus on?";
   };
 
   const sendMessage = async (text = inputMessage, isQuick = false) => {
-    if (!text.trim() && !isQuick) return;
-
+    if (!text || !text.trim()) return;
+    const userText = isQuick ? text : inputMessage;
     const userMsg = {
-      id: messages.length + 1,
-      text: isQuick ? text : inputMessage,
-      sender: 'user',
-      timestamp: new Date()
+      id: `u-${Date.now()}`,
+      sender: "user",
+      text: userText,
+      timestamp: new Date().toISOString(),
     };
-
-    setMessages(prev => [...prev, userMsg]);
-    if (!isQuick) setInputMessage('');
+    setMessages((prev) => [...prev, userMsg]);
+    if (!isQuick) setInputMessage("");
     setIsLoading(true);
 
     try {
-    const response = await fetch(
-  `${import.meta.env.VITE_BACKEND_URL}/ai-chat`,
-  {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      jobDesc: jobDescription || '',
-      resumeText: resumeText || '',
-      userMessage: userMsg.text,
-      analysisSummary: analysis,
-      conversation: messages.slice(-3).map(m => ({
-        sender: m.sender,
-        text: m.text.substring(0, 300)
-      }))
-    })
-  }
-);
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/ai-chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobDesc: jobDescription || "",
+          resumeText: resumeText || "",
+          userMessage: userMsg.text,
+          analysisSummary: analysis,
+          conversation: messages.slice(-4).map((m) => ({ sender: m.sender, text: m.text?.substring(0, 300) })),
+        }),
+      });
 
+      if (!response.ok) throw new Error("API error");
 
-      if (!response.ok) throw new Error('API Error');
       const data = await response.json();
-      
-      setMessages(prev => [...prev, {
-        id: prev.length + 2,
-        text: data.response || "Could you provide more details?",
-        sender: 'ai',
-        timestamp: new Date(),
-        type: 'response'
-      }]);
+      const aiText = data?.response || "Sorry — I couldn't generate an answer. Try rephrasing.";
 
-    } catch (error) {
-      setMessages(prev => [...prev, {
-        id: prev.length + 2,
-        text: generateFallbackResponse(userMsg.text),
-        sender: 'ai',
-        timestamp: new Date(),
-        type: 'response'
-      }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `ai-${Date.now()}`,
+          sender: "ai",
+          text: aiText,
+          timestamp: new Date().toISOString(),
+          type: "response",
+        },
+      ]);
+    } catch (e) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `ai-fallback-${Date.now()}`,
+          sender: "ai",
+          text: generateFallbackResponse(userMsg.text || ""),
+          timestamp: new Date().toISOString(),
+          type: "response",
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
   };
 
   const resetConversation = () => {
-    setMessages([{
-      id: 1,
-      text: "Hi! Let's start fresh!\n\nI'm ready to help you with your career questions.",
-      sender: 'ai',
-      timestamp: new Date(),
-      type: 'welcome'
-    }]);
+    setMessages([
+      {
+        id: `welcome-${Date.now()}`,
+        sender: "ai",
+        text: "Hi — let's start fresh. Ask me about your resume or this job.",
+        timestamp: new Date().toISOString(),
+        type: "welcome",
+      },
+    ]);
   };
 
+  // quick suggestions & topics
+  const quickQuestions = [
+    "How can I better match this job?",
+    "What skills should I prioritize learning?",
+    "What's my biggest strength for this role?",
+  ];
+  const suggestedTopics = [
+    { icon: BookOpen, label: "Skill Gap Analysis", query: "Analyze my skill gaps in detail" },
+    { icon: Target, label: "Resume Optimization", query: "How can I optimize my resume for this job?" },
+    { icon: Clock, label: "Learning Timeline", query: "Create a 30-day learning plan for me" },
+    { icon: Zap, label: "Interview Prep", query: "What interview questions should I expect?" },
+  ];
+
+  // UI helpers
+  const safeNumber = (v) => (v === undefined || v === null ? "--" : v);
+
   return (
-    <div className="w-full max-w-4xl mx-auto p-2 sm:p-4 animate-in fade-in-0 duration-500">
-      {/* Header */}
-      <div className="mb-4 sm:mb-6 sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b border-border/50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-3 flex-1">
-            <button onClick={onBack} className="p-2 rounded-xl bg-muted hover:bg-muted/80 transition-colors flex-shrink-0">
-              <ArrowLeft className="w-5 h-5 text-muted-foreground" />
+    <div className="w-full max-w-4xl mx-auto p-2 sm:p-4">
+      {/* HEADER */}
+      <div className="sticky top-0 z-30 bg-white/70 dark:bg-gray-900/70 backdrop-blur-md border-b border-gray-200/60 dark:border-gray-800/60 rounded-b-xl px-3 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={onBack}
+              aria-label="Back"
+              className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+            >
+              <ArrowLeft className="w-4 h-4 text-gray-700 dark:text-gray-200" />
             </button>
-            <div className="p-2 rounded-xl bg-gradient-to-r from-primary/10 to-secondary/10 backdrop-blur-sm flex-shrink-0">
-              <Bot className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
-            </div>
-            <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-foreground">AI Career Coach</h2>
-              <p className="hidden sm:block text-xs sm:text-sm text-muted-foreground">Ask me anything about your analysis</p>
+
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/10">
+                <Bot className="w-6 h-6 text-indigo-600 dark:text-indigo-300" />
+              </div>
+    <div className="min-w-0 leading-snug">
+  <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white truncate">
+    AI Career Coach
+  </h2>
+  <p className="text-xs text-gray-500 dark:text-gray-300 sm:whitespace-nowrap whitespace-normal">
+    Ask about your analysis, resume or next steps
+  </p>
+</div>
+
+
             </div>
           </div>
-          
-          <div className="flex gap-1 sm:gap-2">
-            <button onClick={resetConversation} className="flex items-center gap-2 px-4 py-2 bg-muted/80 hover:bg-muted border border-border/50 rounded-xl transition-all text-sm">
-              <RefreshCw className="w-4 h-4 text-muted-foreground" />
-              <span className="hidden sm:inline font-medium">Reset</span>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={resetConversation}
+              className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 text-sm"
+            >
+              <RefreshCw className="w-4 h-4" /> Reset
             </button>
-            <button onClick={() => onExport('conversation')} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-secondary text-primary-foreground rounded-xl transition-all shadow-sm text-sm">
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline font-medium">Export</span>
-            </button>
+
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setExportMenuOpen((s) => !s);
+                }}
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm"
+                aria-expanded={exportMenuOpen}
+              >
+                <Download className="w-4 h-4" /> Export
+              </button>
+
+              {exportMenuOpen && (
+                <>
+                  <div onClick={() => setExportMenuOpen(false)} className="fixed inset-0 z-10" />
+                  <div className="absolute right-0 mt-2 w-44 z-20 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-lg p-2">
+                    <button
+                      onClick={() => {
+                        onExport("conversation");
+                        setExportMenuOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 rounded"
+                    >
+                      Export conversation (.txt)
+                    </button>
+                    <button
+                      onClick={() => {
+                        onExport("report");
+                        setExportMenuOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 rounded"
+                    >
+                      Export analysis (.txt)
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
-        
-        {/* Quick Stats */}
-        <div className="hidden md:grid md:grid-cols-4 gap-3 mb-6 pt-2">
-          {[
-            { icon: MessageSquare, label: 'Messages', value: messages.length, color: 'text-primary', bg: 'bg-primary/10' },
-            { icon: Sparkles, label: 'Score', value: `${analysis?.score || '--'}/10`, color: 'text-secondary', bg: 'bg-secondary/10' },
-            { icon: Lightbulb, label: 'Gaps', value: analysis?.skills?.missing?.length || 0, color: 'text-accent', bg: 'bg-accent/10' },
-            { icon: Clock, label: 'Time', value: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), color: 'text-destructive', bg: 'bg-destructive/10' }
-          ].map((stat, i) => (
-            <div key={i} className="bg-muted/50 backdrop-blur-sm rounded-xl p-3 border border-border/50">
-              <div className="flex items-center gap-2 text-xs">
-                <div className={`p-1 ${stat.bg} rounded-lg`}>
-                  <stat.icon className={`w-3 h-3 ${stat.color}`} />
-                </div>
-                <span className="text-muted-foreground">{stat.label}</span>
-              </div>
-              <p className="text-lg font-bold text-foreground mt-1">{stat.value}</p>
+
+        {/* SMALL QUICK STATS - responsive */}
+        <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="bg-gray-50 dark:bg-gray-800/60 p-2 rounded-lg border border-gray-100 dark:border-gray-700 text-center">
+            <div className="text-xs text-gray-500">Messages</div>
+            <div className="text-sm font-semibold text-gray-900 dark:text-white">{messages.length}</div>
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-800/60 p-2 rounded-lg border border-gray-100 dark:border-gray-700 text-center">
+            <div className="text-xs text-gray-500">Score</div>
+            <div className="text-sm font-semibold text-gray-900 dark:text-white">{safeNumber(analysis?.score)}/10</div>
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-800/60 p-2 rounded-lg border border-gray-100 dark:border-gray-700 text-center">
+            <div className="text-xs text-gray-500">Gaps</div>
+            <div className="text-sm font-semibold text-gray-900 dark:text-white">{analysis?.skills?.missing?.length ?? 0}</div>
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-800/60 p-2 rounded-lg border border-gray-100 dark:border-gray-700 text-center">
+            <div className="text-xs text-gray-500">Time</div>
+            <div className="text-sm font-semibold text-gray-900 dark:text-white">
+              {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </div>
-          ))}
+          </div>
         </div>
       </div>
 
-      {/* Chat Container */}
-      <div className="flex flex-col h-screen sm:h-[70vh] md:h-[600px] bg-background/80 backdrop-blur-xl rounded-2xl border border-border/30 shadow-lg overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
-          {messages.map((msg) => (
-            <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2`}>
-              <div className={`max-w-[90%] md:max-w-[75%] ${msg.sender === 'user' ? 'order-2' : 'order-1'}`}>
-                <div className="flex items-start gap-3">
-                  {msg.sender === 'ai' && (
-                    <div className="p-2 rounded-full bg-gradient-to-r from-primary/10 to-secondary/10 mt-1 flex-shrink-0">
-                      <Bot className="w-5 h-5 text-primary" />
-                    </div>
-                  )}
-                  
-                  <div className={`rounded-2xl p-4 relative ${
-                    msg.sender === 'user' 
-                      ? 'bg-gradient-to-r from-primary to-secondary text-primary-foreground rounded-br-md shadow-md' 
-                      : 'bg-card backdrop-blur-sm border border-border/50 rounded-bl-md shadow-sm'
-                  }`}>
-                    <div className="flex justify-between mb-2">
-                      <span className={`text-sm font-medium ${msg.sender === 'user' ? 'text-primary-foreground/90' : 'text-muted-foreground'}`}>
-                        {msg.sender === 'user' ? 'You' : 'Career Compass AI'}
-                      </span>
-                      <button onClick={() => navigator.clipboard.writeText(msg.text)} className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Copy className="w-4 h-4" />
-                      </button>
-                    </div>
-                    
-                    <div className={`text-sm sm:text-base leading-relaxed ${msg.sender === 'user' ? 'text-primary-foreground' : 'text-foreground'}`}>
-                      {formatMessageText(msg.text)}
-                    </div>
+      {/* CHAT CARD */}
+      <div className="mt-4 relative">
+        <div className="flex flex-col h-[70vh] md:h-[72vh] lg:h-[72vh] bg-white dark:bg-gray-900/60 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-lg overflow-hidden">
+          {/* Messages area */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
+            {messages.map((msg) => {
+              const isUser = msg.sender === "user";
+              return (
+                <div key={msg.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[92%] md:max-w-[70%]`}>
+                    <div className="flex items-start gap-3">
+                      {!isUser && (
+                        <div className="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-full flex-shrink-0">
+                          <Bot className="w-5 h-5 text-indigo-600 dark:text-indigo-300" />
+                        </div>
+                      )}
 
-                    {msg.sender === 'ai' && msg.type !== 'welcome' && (
-                      <div className="flex gap-2 mt-3 pt-3 border-t border-border/30">
-                        <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors">
-                          <ThumbsUp className="w-3 h-3" /> Helpful
-                        </button>
-                        <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors">
-                          <ThumbsDown className="w-3 h-3" /> Needs work
-                        </button>
+                      <div className={`${isUser ? "text-right" : "text-left"} relative`}>
+                        <div
+                          className={`inline-block rounded-2xl px-4 py-3 break-words ${
+                            isUser
+                              ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md rounded-br-md"
+                              : "bg-gray-50 dark:bg-gray-800/70 border border-gray-100 dark:border-gray-700 text-gray-800 dark:text-gray-100"
+                          }`}
+                          role="article"
+                          aria-label={isUser ? "Your message" : "AI message"}
+                        >
+                          <div className="text-sm sm:text-base leading-relaxed">{formatMessageText(msg.text, msg.sender === "user")}
+</div>
+                        </div>
+
+                        <div className="mt-2 text-xs text-gray-400 dark:text-gray-400 flex items-center gap-2 justify-between">
+                          <div className={isUser ? "flex justify-end gap-2" : "flex gap-2"}>
+                            <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                            <button
+                              onClick={() => navigator.clipboard.writeText(msg.text)}
+                              className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                              title="Copy message"
+                            >
+                              <Copy className="w-3.5 h-3.5 text-gray-500" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* feedback buttons for AI responses */}
+                        {!isUser && msg.type !== "welcome" && (
+                          <div className="mt-2 flex gap-2 justify-start">
+                            <button className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+                              <ThumbsUp className="w-3.5 h-3.5" /> Helpful
+                            </button>
+                            <button className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+                              <ThumbsDown className="w-3.5 h-3.5" /> Needs work
+                            </button>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
 
-                  {msg.sender === 'user' && (
-                    <div className="p-2 rounded-full bg-gradient-to-r from-primary/20 to-secondary/20 mt-1 flex-shrink-0">
-                      <User className="w-5 h-5 text-primary-foreground" />
+                      {isUser && (
+                        <div className="p-2 bg-gray-100 dark:bg-gray-800/60 rounded-full flex-shrink-0">
+                          <User className="w-5 h-5 text-gray-800 dark:text-gray-100" />
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/70 p-3 rounded-2xl">
+                  <div className="p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-full">
+                    <Bot className="w-4 h-4 text-indigo-600" />
+                  </div>
+                  <div className="text-sm text-gray-700 dark:text-gray-200">Thinking</div>
+                  <div className="flex items-center gap-1 ml-2">
+                    <div className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-bounce" />
+                    <div className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-bounce delay-100" />
+                    <div className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-bounce delay-200" />
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-          
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="flex items-start gap-3 max-w-[75%]">
-                <div className="p-2 rounded-full bg-primary/10"><Bot className="w-5 h-5 text-primary" /></div>
-                <div className="bg-card rounded-2xl p-4 border border-border/50 flex items-center gap-2">
-                  <span className="text-sm">Thinking</span>
-                  <div className="flex gap-1">
-                    <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" />
-                    <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce delay-100" />
-                    <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce delay-200" />
-                  </div>
-                </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Quick starts (visible only on first message or small) */}
+          {messages.length === 1 && (
+            <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-800 bg-white/30 dark:bg-gray-900/30">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-xs font-medium text-gray-600 dark:text-gray-300">Quick starts</div>
+                <button
+                  onClick={() => sendMessage("Show more quick prompts", true)}
+                  className="text-xs text-indigo-600 dark:text-indigo-400"
+                >
+                  More
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {quickQuestions.map((q, i) => (
+                  <button
+                    key={i}
+                    onClick={() => sendMessage(q, true)}
+                    className="text-xs px-3 py-1.5 bg-white dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700 rounded-lg"
+                  >
+                    {q}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setMessages((p) => [...p, { id: `s-${Date.now()}`, sender: "ai", text: "Try asking about 'resume bullets' or '30-day plan'." }])}
+                  className="text-xs px-2 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center gap-1"
+                >
+                  <ChevronRight className="w-3 h-3" />
+                </button>
               </div>
             </div>
           )}
-          <div ref={messagesEndRef} />
-        </div>
 
-        {/* Quick Actions (only on start) */}
-        {messages.length === 1 && (
-          <div className="px-4 py-3 bg-accent/5 border-t border-border/50">
-            <p className="text-xs font-medium text-muted-foreground mb-2">Quick starts:</p>
-            <div className="flex flex-wrap gap-2">
-              {quickQuestions.slice(0, 3).map((q, i) => (
-                <button key={i} onClick={() => sendMessage(q, true)} className="text-xs px-3 py-1.5 bg-card hover:bg-card/80 border rounded-lg transition-all truncate max-w-[200px]">
-                  {q}
-                </button>
-              ))}
-              <button className="text-xs px-2 py-1.5 bg-card border rounded-lg"><ChevronRight className="w-3 h-3" /></button>
+          {/* Input area */}
+          <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900/60">
+            <div className="flex gap-3 items-center">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey && !isLoading) {
+                      e.preventDefault();
+                      sendMessage();
+                    }
+                  }}
+                  placeholder="Ask about your career fit, resume, or job..."
+                  aria-label="Message input"
+                  disabled={isLoading}
+                  className="w-full rounded-xl px-9 py-3 pr-12 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                />
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">
+                  <Bot className="w-4 h-4" />
+                </div>
+              </div>
+
+              <button
+                onClick={() => sendMessage()}
+                disabled={isLoading || !inputMessage.trim()}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl disabled:opacity-50 transition"
+                aria-label="Send message"
+              >
+                <Send className="w-4 h-4" />
+                <span className="hidden sm:inline">Send</span>
+              </button>
             </div>
           </div>
-        )}
+        </div>
 
-       {/* Input Area */}
-<div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl">
-  <div className="flex gap-3">
-
-    {/* Text Input */}
-    <div className="flex-1 relative">
-      <input
-        type="text"
-        value={inputMessage}
-        onChange={(e) => setInputMessage(e.target.value)}
-        onKeyPress={(e) => e.key === 'Enter' && !isLoading && sendMessage()}
-        placeholder="Ask about your career fit..."
-        className="
-          w-full px-4 py-3 pl-12 
-          bg-gray-100 dark:bg-gray-800 
-          text-gray-900 dark:text-white
-          border border-gray-300 dark:border-gray-700
-          rounded-xl 
-          focus:ring-2 focus:ring-indigo-500/40
-          outline-none transition-all
-        "
-        disabled={isLoading}
-      />
-      <Bot className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 dark:text-gray-400" />
-    </div>
-
-    {/* Send Button */}
-    <button
-      onClick={() => sendMessage()}
-      disabled={isLoading || !inputMessage.trim()}
-      className="
-        px-6 py-3 
-        bg-gradient-to-r from-indigo-600 to-purple-600 
-        text-white 
-        rounded-xl 
-        hover:opacity-90 
-        disabled:opacity-50 
-        transition-all 
-        flex items-center gap-2
-      "
-    >
-      <Send className="w-4 h-4" />
-      <span className="hidden sm:inline">Send</span>
-    </button>
-
-  </div>
-</div>
-
-      </div>
-
-      {/* Footer Tips */}
-      <div className="mt-6 p-4 bg-accent/5 rounded-xl border border-accent/20 flex items-start gap-3">
-        <Lightbulb className="w-5 h-5 text-accent-foreground mt-0.5" />
-        <div>
-          <p className="font-medium text-sm mb-1">Pro tips:</p>
-          <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1"><ChevronRight className="w-3 h-3" /> Be specific about skills</span>
-            <span className="flex items-center gap-1"><ChevronRight className="w-3 h-3" /> Ask follow-ups</span>
-            <span className="flex items-center gap-1"><ChevronRight className="w-3 h-3" /> Request examples</span>
+        {/* footer tips */}
+        <div className="mt-3 flex items-start gap-3 p-3 bg-white/50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800 rounded-lg">
+          <Lightbulb className="w-5 h-5 text-indigo-600" />
+          <div>
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">Pro tips</p>
+            <div className="flex gap-4 text-xs text-gray-600 dark:text-gray-300 mt-1">
+              <span className="flex items-center gap-2"><ChevronRight className="w-3 h-3" />Be specific about skills</span>
+              <span className="flex items-center gap-2"><ChevronRight className="w-3 h-3" />Ask follow-ups</span>
+              <span className="flex items-center gap-2"><ChevronRight className="w-3 h-3" />Request examples</span>
+            </div>
           </div>
         </div>
       </div>
