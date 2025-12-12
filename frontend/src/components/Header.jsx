@@ -15,12 +15,11 @@ const Header = ({ theme, toggleTheme, onNewAnalysis }) => {
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20">
 
-          {/* Logo Section */}
           <div
             className="flex items-center gap-2 sm:gap-3 cursor-pointer group select-none"
             onClick={onNewAnalysis}
           >
-            {/* Logo Icon */}
+       
             <div className="relative shrink-0">
               <div
                 className="
@@ -41,7 +40,7 @@ const Header = ({ theme, toggleTheme, onNewAnalysis }) => {
               </div>
             </div>
 
-            {/* Title */}
+          
             <div className="flex flex-col leading-none">
               <h1
                 className="
@@ -61,7 +60,6 @@ const Header = ({ theme, toggleTheme, onNewAnalysis }) => {
                 </span>
               </h1>
 
-              {/* Subtitle */}
               <p
                 className="
                   hidden xs:block mt-0.5
@@ -75,10 +73,9 @@ const Header = ({ theme, toggleTheme, onNewAnalysis }) => {
             </div>
           </div>
 
-          {/* Right Section */}
           <div className="flex items-center gap-2 sm:gap-4">
 
-            {/* New Analysis Button */}
+        
             <button
               onClick={onNewAnalysis}
               className="

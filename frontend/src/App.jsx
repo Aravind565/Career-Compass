@@ -35,84 +35,78 @@ const App = () => {
     document.documentElement.classList.toggle('dark', newTheme === 'dark');
   };
 
-  const handleAnalyze = async (file, resumeTextContent) => {
-    if (!jobDescription || jobDescription.trim().length < 20) {
-      setError("Please provide a detailed job description (at least 20 characters).");
-      return;
+ const handleAnalyze = async (file, resumeTextContent) => {
+  if (!jobDescription || jobDescription.trim().length < 20) {
+    setError("Please provide a detailed job description (at least 20 characters).");
+    return;
+  }
+
+  if (!file && !resumeTextContent?.trim()) {
+    setError("Please upload a resume file or paste resume text.");
+    return;
+  }
+
+  setLoading(true);
+  setError("");
+  
+  try {
+    const formData = new FormData();
+    formData.append("jobDescription", jobDescription);
+
+    if (userQuestion) {
+      formData.append("userQuery", userQuestion);
     }
 
-    if (!file && !resumeTextContent?.trim()) {
-      setError("Please upload a resume file or paste resume text.");
-      return;
+    if (file) {
+      formData.append("resume", file);
+    } else if (resumeTextContent) {
+      formData.append("resumeText", resumeTextContent);
     }
 
-    setLoading(true);
-    setError('');
+    const API_URL = import.meta.env.VITE_BACKEND_URL;
+    const response = await fetch(`${API_URL}/analyze`, {
+      method: "POST",
+      body: formData,
+    });
+
     
-    try {
-      const formData = new FormData();
-      formData.append('jobDescription', jobDescription);
-      
-      if (userQuestion) {
-        formData.append('userQuery', userQuestion);
-      }
-      
-      if (file) {
-        formData.append('resume', file);
-      } else if (resumeTextContent) {
-        formData.append('resumeText', resumeTextContent);
-      }
+    const data = await response.json().catch(() => ({}));
 
-const API_URL = import.meta.env.VITE_BACKEND_URL;
-const response = await fetch(`${API_URL}/analyze`, {
-  method: 'POST',
-  body: formData,
-});
-
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Server error ${response.status}`);
-      }
-      
-      const data = await response.json();
-
-      if (result && typeof result.score === 'number') {
-        setPreviousScore(Number(result.score));
-      }
-
-      let extractedResumeText = '';
-      if (file) {
-        try {
-          if (file.type === 'text/plain') {
-            extractedResumeText = await file.text();
-          } else {
-            extractedResumeText = 'File content processed';
-          }
-        } catch (e) {
-          console.error('Error extracting text:', e);
-          extractedResumeText = 'File content unavailable';
-        }
-      } else {
-        extractedResumeText = resumeTextContent;
-      }
-
-      setConversationData({
-        jobDesc: jobDescription,
-        resumeText: extractedResumeText,
-        fileContent: file ? 'File uploaded' : resumeTextContent
-      });
-
-      setResult(data);
-      setActiveView('results');
-
-    } catch (err) {
-      console.error('Analysis error:', err);
-      setError(err.message || 'Analysis failed. Please try again.');
-    } finally {
-      setLoading(false);
+ 
+    if (!response.ok || data.error) {
+      setError(data.error || "Analysis failed. Please try again.");
+      return;  
     }
-  };
+
+
+    if (data.score) {
+      setPreviousScore(Number(data.score));
+    }
+
+    let extractedResumeText = "";
+    if (file) {
+      extractedResumeText =
+        file.type === "text/plain" ? await file.text() : "File content processed";
+    } else {
+      extractedResumeText = resumeTextContent;
+    }
+
+    setConversationData({
+      jobDesc: jobDescription,
+      resumeText: extractedResumeText,
+      fileContent: file ? "File uploaded" : resumeTextContent,
+    });
+
+    setResult(data);
+    setActiveView("results");
+  } catch (err) {
+    console.error("Analysis error:", err);
+    setError(err.message || "Analysis failed. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleExport = async (format) => {
     if (!result) return;

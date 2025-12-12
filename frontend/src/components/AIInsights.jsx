@@ -19,7 +19,6 @@ import {
   ArrowLeft,
 } from "lucide-react";
 
-/* Small helper: keep your existing formatMessageText logic (slightly adjusted) */
 const formatMessageText = (text, isUser = false) => {
   if (!text) return null;
   const lines = text.split("\n");
@@ -36,7 +35,6 @@ const formatMessageText = (text, isUser = false) => {
       return;
     }
 
-    // Numbered list
     const numberMatch = trimmed.match(/^(\d+)\.\s+(.+)$/);
     if (numberMatch) {
       const [, number, content] = numberMatch;
@@ -49,7 +47,6 @@ const formatMessageText = (text, isUser = false) => {
       return;
     }
 
-    // Bullet
     if (trimmed.startsWith("- ")) {
       elements.push(
         <div key={`bullet-${index}`} className="flex items-start gap-2 mb-2 ml-1">
@@ -60,7 +57,6 @@ const formatMessageText = (text, isUser = false) => {
       return;
     }
 
-    // Header (like “Strengths:”)
     if (trimmed.endsWith(":") && trimmed.length < 120) {
       elements.push(
         <h4 key={`header-${index}`} className={`font-semibold mt-3 mb-2 ${finalText}`}>
@@ -70,7 +66,7 @@ const formatMessageText = (text, isUser = false) => {
       return;
     }
 
-    // Paragraph
+ 
     elements.push(
       <p key={`p-${index}`} className={`leading-relaxed mb-2 ${finalText}`}>
         {trimmed}
@@ -121,7 +117,7 @@ const AIInsights = ({
   };
 
   useEffect(() => {
-    // initial message
+
     setMessages([
       {
         id: "welcome-1",
@@ -131,14 +127,13 @@ const AIInsights = ({
         type: "welcome",
       },
     ]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, isLoading]);
 
-  // small fallback generator (keeps previous logic)
   const generateFallbackResponse = (query) => {
     const lower = query.toLowerCase();
     const missing = (analysis?.skills?.missing ?? []).slice(0, 3).map((s) => s.name).join(", ") || "some skills";
@@ -430,7 +425,7 @@ const AIInsights = ({
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Quick starts (visible only on first message or small) */}
+          
           {messages.length === 1 && (
             <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-800 bg-white/30 dark:bg-gray-900/30">
               <div className="flex items-center justify-between mb-2">

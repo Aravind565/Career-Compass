@@ -4,7 +4,7 @@ import {
   RefreshCw, Award, TrendingUp, FileText, ChevronDown, ExternalLink, 
   Calendar, Target, Search, Zap, Users, Code, Database, 
   Cloud, Settings, Clock, ChevronRight, ArrowUpRight, Sparkles, 
-  MessageSquare, Bot, Share2, Check, Trophy, Lightbulb, GraduationCap
+  MessageSquare, Bot, Share2, Check, Trophy, Lightbulb, GraduationCap, AlertTriangle
 } from 'lucide-react';
 
 const categorizeSkill = (skillName) => {
@@ -84,6 +84,11 @@ const ResultsView = ({
   const improvements = safeResult.insights.filter(i => i.type === 'improvement');
   const strengths = safeResult.insights.filter(i => i.type === 'strength');
   const advice = safeResult.insights.filter(i => i.type === 'advice');
+  const extractionFailed =
+  safeResult.skills.present.length === 0 &&
+  safeResult.skills.missing.length === 0 &&
+  result?.metadata?.fileType === "application/pdf";
+
 
   const filteredPresent = safeResult.skills.present.filter(s => 
     s.name.toLowerCase().includes(searchSkill.toLowerCase()) || 
@@ -136,12 +141,10 @@ const ResultsView = ({
    {/* Header */}
 <div className="relative mb-10 pt-6">
 
-  {/* Soft Background Glow */}
   <div className="absolute inset-0 bg-gradient-to-r from-indigo-400/10 via-purple-400/10 to-pink-400/10 blur-2xl -z-10 rounded-3xl" />
 
   <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-8">
 
-    {/* LEFT — TITLE */}
     <div>
       <div className="flex items-center gap-2 mb-2">
         <span className="
@@ -173,10 +176,8 @@ const ResultsView = ({
       </p>
     </div>
 
-    {/* RIGHT — BUTTONS */}
     <div className="flex flex-wrap items-center gap-3">
 
-      {/* SHARE BUTTON */}
       <button
         onClick={handleShare}
         className="
@@ -198,7 +199,6 @@ const ResultsView = ({
         </span>
       </button>
 
-      {/* EXPORT BUTTON */}
       <div className="relative">
         <button
           onClick={() => setExportMenuOpen(!exportMenuOpen)}
@@ -219,7 +219,6 @@ const ResultsView = ({
           />
         </button>
 
-        {/* DROPDOWN */}
         {exportMenuOpen && (
           <>
             <div 
@@ -251,7 +250,6 @@ const ResultsView = ({
         )}
       </div>
 
-      {/* RE-ANALYZE BUTTON */}
       <button
         onClick={onEdit}
         className="
@@ -270,6 +268,27 @@ const ResultsView = ({
   </div>
 </div>
 
+{overallScore === 0 &&
+ presentSkillsCount === 0 &&
+ (resumeText?.length || 0) < 200 && (
+  <div className="
+    mt-4 p-4 rounded-xl 
+    bg-amber-100 dark:bg-amber-900/20 
+    text-amber-800 dark:text-amber-300 
+    border border-amber-300 dark:border-amber-700
+    flex items-start gap-3
+  ">
+ 
+    <p className="text-sm leading-relaxed font-medium">
+      Note : We could not fully read your resume. This usually happens with 
+      <strong> scanned PDFs or image-based resumes</strong>.  
+      <br />
+      For best results, please upload a <strong>text-based PDF</strong> or try the 
+      <strong> Paste Resume Text</strong> option.
+    </p>
+  </div> 
+)}
+<br></br>
 
 {/* Tabs */}
 <div className="sticky top-14 sm:top-20 lg:top-24 z-20 mb-8 overflow-x-auto pb-2 scrollbar-hide ">
@@ -301,18 +320,34 @@ const ResultsView = ({
   </div>
 </div>
 
-
-
-      {/* Content Area */}
       <div className="min-h-[500px] animate-in fade-in slide-in-from-bottom-4 duration-500">
+        {extractionFailed && (
+  <div className="
+    mb-8 p-5 rounded-2xl
+    bg-red-100/60 dark:bg-red-900/30 
+    border border-red-300/40 dark:border-red-700/40
+    text-red-700 dark:text-red-300
+    shadow-sm backdrop-blur-md
+  ">
+    <h3 className="font-bold text-lg mb-1 flex items-center gap-2">
+      <XCircle size={20} className="text-red-500" />
+      Unable to Read Your PDF
+    </h3>
+
+    <p className="text-sm leading-relaxed">
+      Your uploaded PDF appears to be scanned or image-based. Our system couldn't extract text, so your
+      results may be incomplete or inaccurate.
+      <br />
+      <span className="font-semibold">Try uploading a text-based PDF or use the “Paste” mode for best accuracy.</span>
+    </p>
+  </div>
+)}
+
      {/* OVERVIEW */}
 {activeTab === "overview" && (
   <div className="space-y-8">
-
-    {/* Top Cards Grid */}
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 
-      {/* SCORE CARD */}
       <div className="
         md:col-span-2 
         bg-white dark:bg-gray-900 
@@ -325,7 +360,6 @@ const ResultsView = ({
 
         <div className="flex items-center justify-between">
 
-          {/* LEFT - SCORE DETAILS */}
           <div>
             <div className="flex items-end gap-2">
               <span
@@ -360,7 +394,6 @@ const ResultsView = ({
               {safeResult.matchLevel}
             </p>
 
-            {/* Previous Score */}
             {previousScore && (
               <div className="
                 inline-flex items-center gap-2 
@@ -378,10 +411,9 @@ const ResultsView = ({
             )}
           </div>
 
-         {/* RIGHT – CIRCLE VISUAL */}
+  
 <div className="relative w-28 h-28 flex items-center justify-center">
 
-  {/* The Circle */}
   <svg className="w-full h-full transform -rotate-90">
     <circle
       cx="56"
@@ -404,7 +436,6 @@ const ResultsView = ({
     />
   </svg>
 
-  {/* TOP-RIGHT ICON */}
   <div className="
     absolute -top-10 -right-2
     p-2 rounded-xl 
@@ -422,7 +453,6 @@ const ResultsView = ({
         </div>
       </div>
 
-      {/* ATS SCORE */}
       <div className="
         bg-white dark:bg-gray-900 
         border border-gray-200 dark:border-gray-700 
@@ -449,7 +479,7 @@ const ResultsView = ({
         <p className="mt-2 text-xs text-gray-500">Parsability by automated systems</p>
       </div>
 
-      {/* SKILLS RATIO */}
+
       <div className="
         bg-white dark:bg-gray-900 
         border border-gray-200 dark:border-gray-700 
@@ -478,24 +508,21 @@ const ResultsView = ({
       </div>
     </div>
 
-    {/* EXECUTIVE SUMMARY */}
     <div className="
       bg-white dark:bg-gray-900 
       border border-gray-200 dark:border-gray-700 
       rounded-2xl p-6 shadow-sm
     ">
-      <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-white mb-4">
-        <Bot className="text-indigo-500" /> Executive Summary
-      </h3>
+     <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-white mb-4">
+  <Bot className="text-indigo-500" /> Analysis Summary
+</h3>
       <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
         {safeResult.summary}
       </p>
     </div>
 
-    {/* QUICK INSIGHTS */}
     <div className="grid md:grid-cols-2 gap-6">
 
-      {/* STRENGTHS */}
       <div className="
         bg-emerald-50 dark:bg-emerald-900/10 
         rounded-xl p-5 border border-emerald-200 dark:border-emerald-800
@@ -514,7 +541,6 @@ const ResultsView = ({
         </ul>
       </div>
 
-      {/* IMPROVEMENTS */}
       <div className="
         bg-amber-50 dark:bg-amber-900/10 
         rounded-xl p-5 border border-amber-200 dark:border-amber-800
@@ -551,7 +577,6 @@ const ResultsView = ({
 {activeTab === "skills" && (
   <div className="space-y-8">
 
-    {/* Search Bar */}
     <div className="relative">
       <div
         className="
@@ -583,7 +608,7 @@ const ResultsView = ({
 
     <div className="grid md:grid-cols-2 gap-6">
 
-      {/* Matched Skills */}
+
       <div className="
         bg-white dark:bg-gray-900
         border border-gray-200 dark:border-gray-700
@@ -634,7 +659,6 @@ const ResultsView = ({
         )}
       </div>
 
-    {/* Missing Skills */}
 <div className="
   bg-white dark:bg-gray-900
   border border-gray-200 dark:border-gray-700
@@ -727,12 +751,10 @@ const ResultsView = ({
 {activeTab === "learning" && (
   <div className="grid lg:grid-cols-3 gap-8">
 
-    {/* LEFT — Main Learning Path */}
     <div className="lg:col-span-2 space-y-8">
 
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl p-8 shadow-sm">
 
-        {/* Header */}
         <div className="flex items-center gap-3 mb-8">
           <div className="p-3 bg-indigo-100 dark:bg-indigo-900/40 rounded-xl text-indigo-600 dark:text-indigo-300">
             <BookOpen size={22} />
@@ -747,7 +769,6 @@ const ResultsView = ({
           </div>
         </div>
 
-        {/* If learning required */}
         {safeResult.learningPath.length > 0 ? (
           <div className="space-y-6">
 
@@ -756,7 +777,7 @@ const ResultsView = ({
                 key={index}
                 className="border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 rounded-xl p-6 shadow-sm hover:shadow-md transition"
               >
-                {/* Title Row */}
+    
                 <div className="flex justify-between items-start mb-3">
                   <h4 className="text-lg font-semibold text-gray-800 dark:text-white">
                     {index + 1}. {step.skill}
@@ -778,7 +799,7 @@ const ResultsView = ({
                   </span>
                 </div>
 
-                {/* Difficulty & Time */}
+        
                 <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-300 mb-4">
                   <div className="flex items-center gap-1">
                     <Clock size={14} /> {step.timeEstimate}
@@ -793,7 +814,7 @@ const ResultsView = ({
                   </div>
                 </div>
 
-                {/* Resources */}
+             
                 <div>
                   <p className="text-xs font-bold text-gray-500 uppercase mb-2">
                     Resources
@@ -822,7 +843,7 @@ const ResultsView = ({
                   </div>
                 </div>
 
-                {/* Suggested Projects */}
+           
                 <div className="mt-4">
                   <p className="text-xs font-bold text-gray-500 uppercase mb-1">
                     Suggested Project
@@ -837,7 +858,7 @@ const ResultsView = ({
 
           </div>
         ) : (
-          /* If all skills matched */
+  
           <div className="text-center py-12 px-6 border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 rounded-2xl">
             <div className="w-16 h-16 border-2 border-indigo-300 dark:border-indigo-700 rounded-full mx-auto mb-4 flex items-center justify-center">
               <Sparkles size={26} className="text-indigo-600 dark:text-indigo-300" />
@@ -857,10 +878,8 @@ const ResultsView = ({
       </div>
     </div>
 
-    {/* RIGHT — Study Tips */}
     <div className="space-y-8">
 
-      {/* Pro Tip */}
       <div className="border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm">
         <h3 className="font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
           <Lightbulb size={18} className="text-yellow-500" /> Pro Tip
@@ -872,7 +891,7 @@ const ResultsView = ({
         </p>
       </div>
 
-      {/* Study Techniques */}
+  
       <div className="border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm">
         <h3 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
           <Brain size={18} className="text-indigo-600" /> Study Techniques
@@ -880,7 +899,7 @@ const ResultsView = ({
 
         <div className="space-y-4">
 
-          {/* Technique Cards */}
+      
           {[
             { title: "Pomodoro", desc: "25m work, 5m break", icon: Clock },
             { title: "Feynman", desc: "Explain to learn deeply", icon: Users },
@@ -918,7 +937,6 @@ const ResultsView = ({
     
     <div className="max-w-3xl mx-auto">
 
-      {/* Icon */}
       <div className="flex items-center justify-center mb-8">
         <div className="
           w-20 h-20 
@@ -930,7 +948,6 @@ const ResultsView = ({
         </div>
       </div>
 
-      {/* Title */}
       <div className="text-center mb-8">
         <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
           AI Career Coach
@@ -940,23 +957,23 @@ const ResultsView = ({
         </p>
       </div>
 
-      {/* Content Box */}
+
       <div className="
         bg-gray-50 dark:bg-gray-800 
         rounded-2xl p-8
         border border-gray-200 dark:border-gray-700 
         shadow-sm
       ">
-        {/* Header Line */}
+
         <div className="w-full h-1 bg-indigo-500 rounded-full mb-4"></div>
 
-        {/* Markdown Output */}
+   
         <div className="prose dark:prose-invert max-w-none leading-relaxed text-gray-700 dark:text-gray-300">
           {renderMarkdown(safeResult.aiGuidance)}
         </div>
       </div>
 
-      {/* Additional Insights Box */}
+
       <div className="
         mt-10 p-6 
         rounded-2xl 
@@ -976,7 +993,7 @@ const ResultsView = ({
         </p>
       </div>
 
-      {/* Conversation Button */}
+
       <div className="mt-10 flex flex-col items-center">
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 font-medium">
           Want deeper clarification?
@@ -1007,7 +1024,7 @@ const ResultsView = ({
   <>
     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
 
-      {/* Strengths */}
+ 
       <div className="
         bg-white dark:bg-gray-900 
         border border-gray-200 dark:border-gray-700 
@@ -1046,7 +1063,7 @@ const ResultsView = ({
         )}
       </div>
 
-      {/* Growth Areas */}
+  
       <div className="
         bg-white dark:bg-gray-900 
         border border-gray-200 dark:border-gray-700 
@@ -1093,7 +1110,6 @@ const ResultsView = ({
         )}
       </div>
 
-      {/* Strategic Advice */}
       <div className="
         bg-white dark:bg-gray-900 
         border border-gray-200 dark:border-gray-700 
@@ -1134,7 +1150,7 @@ const ResultsView = ({
 
     </div>
 
-    {/* COMMON ASK AI BUTTON */}
+    
     <div className="w-full flex justify-center mt-8">
       <button 
         onClick={onOpenAIChat}

@@ -53,26 +53,43 @@ const InputSection = ({
     setFile(uploadedFile);
     setSelectedFile?.(uploadedFile);
   };
+const handleAnalyzeClick = async () => {
+  if (!jobDesc || jobDesc.length < 20) {
+    setLocalError("Please provide a detailed job description.");
+    return;
+  }
 
-  const handleAnalyzeClick = () => {
-    if (!jobDesc || jobDesc.length < 20) {
-      setLocalError("Please provide a detailed job description.");
-      return;
+  if (resumeMode === "text" && resumeTextLocal.length < 50) {
+    setLocalError("Please paste enough resume text.");
+    return;
+  }
+
+  if (resumeMode === "upload" && !file) {
+    setLocalError("Please upload your resume file.");
+    return;
+  }
+
+  setLocalError(null);
+  onErrorClear?.();
+
+  try {
+    await onAnalyze(file, resumeTextLocal);
+
+  } catch (err) {
+    const msg = err?.message?.toLowerCase() || "";
+
+    if (msg.includes("pdf") || msg.includes("extract") || msg.includes("text")) {
+      setLocalError(
+        "We couldn't read your PDF. It may be scanned or contain images. Please upload a text-based PDF or use Paste mode."
+      );
+    } else {
+      setLocalError(err.message || "Something went wrong. Please try again.");
     }
 
-    if (resumeMode === "text" && resumeTextLocal.length < 50) {
-      setLocalError("Please paste enough resume text.");
-      return;
-    }
+    return; 
+  }
+};
 
-    if (resumeMode === "upload" && !file) {
-      setLocalError("Please upload your resume file.");
-      return;
-    }
-
-    setLocalError(null);
-    onAnalyze(file, resumeTextLocal);
-  };
 
   const isReady =
     jobDesc?.length > 20 &&
@@ -81,7 +98,7 @@ const InputSection = ({
   return (
     <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-10 animate-in fade-in duration-700">
 
-      {/* Header */}
+      
       <div className="text-center mb-10">
         <div
           className="
@@ -154,7 +171,7 @@ const InputSection = ({
                 Your Resume
               </h3>
 
-              {/* Mode Toggle */}
+           
               <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden border border-gray-300/50 dark:border-gray-700/50">
                 {["upload", "text"].map((mode) => (
                   <button
@@ -252,10 +269,18 @@ transition-all font-semibold"
                 "
               />
             )}
+ {resumeMode === "upload" && (
+  <p className="mt-3 text-xs flex items-center gap-1 text-amber-600 dark:text-amber-400">
+    <AlertTriangle size={12} />
+    Text extraction may fail for scanned / image-based PDFs.  
+    If issues occur, use a text-based PDF or switch to Paste mode.
+  </p>
+)}
+
           </div>
         </div>
 
-        {/* Error Box */}
+     
         {(localError || error) && (
           <div
             className="
@@ -275,7 +300,7 @@ transition-all font-semibold"
           </div>
         )}
 
-        {/* CTA Button */}
+    
         <div className="flex justify-center mt-10">
           <button
             onClick={handleAnalyzeClick}
