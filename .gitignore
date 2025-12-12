@@ -1,0 +1,17 @@
+# Ignore Node modules everywhere
+node_modules/
+
+# Ignore environment files
+.env
+
+# Logs
+logs
+*.log
+
+# System
+.DS_Store
+Thumbs.db
+
+# Build files
+dist
+dist-ssr
