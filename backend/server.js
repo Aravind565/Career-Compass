@@ -27,24 +27,27 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const PORT = process.env.PORT || 5000;
 
+
 async function extractTextFromPDF(buffer) {
-  console.log("🔍 Starting SAFE PDF extraction...");
+  console.log("🔍 Starting PDF extraction...");
 
   try {
     const data = await pdf(buffer);
-    if (data.text && data.text.trim().length >= 30) {
-      console.log(`✅ pdf-parse extracted ${data.text.length} characters`);
-      return cleanExtractedText(data.text, 'pdf');
+ 
+    if (!data || !data.text || data.text.trim().length < 10) {
+      throw new Error("No text found in PDF");
     }
-    throw new Error("pdf-parse extracted too little text");
-  } catch (err) {
-    console.log("❌ pdf-parse failed:", err.message);
-  }
 
-  throw new Error(
-    "Unable to extract text from PDF. The file may be scanned or encrypted. " +
-    "Upload a text-based PDF or convert your resume to DOCX."
-  );
+    const text = data.text;
+    console.log(`✅ pdf-parse extracted ${text.length} characters`);
+    
+ 
+    return cleanExtractedText(text, 'pdf');
+
+  } catch (err) {
+    console.log("pdf-parse failed:", err.message);
+    throw new Error("Could not parse PDF. Please try converting to DOCX or TXT.");
+  }
 }
 
 async function extractTextFromPDFLibPage(page) {
@@ -556,19 +559,12 @@ app.post("/analyze", upload.single("resume"), async (req, res) => {
        resumeText = await extractText(file);
 console.log(`✅ Extracted ${resumeText.length} characters from file`);
 
-if (
-  !resumeText ||
-  resumeText.trim().length < 80 ||                      
-  resumeText.replace(/[^a-zA-Z]/g, "").length < 30 || 
-  resumeText.toLowerCase().includes("%%") ||           
-  resumeText.toLowerCase().includes("obj")            
-) {
-  return res.status(400).json({
-    error:
-      "We could not extract readable text from your PDF. It may be scanned or contain images. Please upload a text-based PDF or use Paste mode.",
-    type: "extraction_error",
-  });
-}
+if (!resumeText || resumeText.trim().length < 50) {
+          return res.status(400).json({
+            error: "The PDF content is too short or unreadable. It might be an image-based scan.",
+            type: "extraction_error",
+          });
+        }
 
       } catch (err) {
         console.error("File extraction error:", err.message);
@@ -577,16 +573,12 @@ if (
           type: "extraction_error"
         });
       }
-    } else if (!resumeText ||
-    resumeText.trim().length < 50 ||
-    resumeText.replace(/[^a-zA-Z0-9]/g, "").length < 30) {
-
-  return res.status(400).json({
-    error: "Your PDF seems scanned or unreadable. Please upload a text-based PDF or paste your resume.",
-    type: "extraction_error"
-  });
-}
-
+    } else if (!resumeText || resumeText.trim().length < 50) {
+      return res.status(400).json({ 
+        error: "Please provide resume content (at least 50 characters).",
+        type: "validation_error"
+      });
+    }
     const jobSkills = extractAllSkills(jobDescription);
     const resumeSkills = extractAllSkills(resumeText);
     
@@ -732,13 +724,12 @@ app.post("/ai-chat", async (req, res) => {
   console.log("=== AI CHAT REQUEST ===");
   
   const { 
-    jobDesc = '', 
-    resumeText = '', 
     userMessage, 
-    analysisSummary = null,
-    conversation = [] 
+    conversation = [], 
+    analysisSummary = null 
   } = req.body;
 
+  // 1. Validate Input
   if (!userMessage || userMessage.trim().length === 0) {
     return res.status(400).json({ 
       response: "Please provide a message.",
@@ -748,79 +739,103 @@ app.post("/ai-chat", async (req, res) => {
 
   const lowerMsg = userMessage.toLowerCase().trim();
 
+  // 2. Handle Common Greetings (Save API Cost)
   const simpleGreetings = ['thank you', 'thanks', 'hello', 'hi', 'hey', 'bye', 'goodbye'];
-  
-  if (simpleGreetings.includes(lowerMsg)) {
-    let response = "";
-    switch(lowerMsg) {
-      case 'thank you':
-      case 'thanks':
-        response = "You're welcome! Let me know if you need more help.";
-        break;
-      case 'hello':
-      case 'hi':
-      case 'hey':
-        response = `Hello! I'm Career Compass AI. Your match score is ${analysisSummary?.score || 'N/A'}/10. How can I help you?`;
-        break;
-      case 'bye':
-      case 'goodbye':
-        response = "Goodbye! Keep working on your skills and good luck with your job search!";
-        break;
-    }
-    
+  if (simpleGreetings.includes(lowerMsg.replace(/[!.]/g, ''))) {
     return res.json({
-      response,
+      response: `Hello! I'm Career Compass AI. Based on your analysis (Score: ${analysisSummary?.score || 'N/A'}/10), how can I help you improve your profile today?`,
       success: true,
-      source: "greeting"
+      source: "local-greeting"
     });
   }
 
+  // 3. Special Logic: "X Day Learning Plan"
+  // If user asks for "30 days plan" or "7 day plan", generate it algorithmically or specifically prompt for it
   const dayPlanMatch = lowerMsg.match(/(\d+)\s*days?\s*plan/);
   if (dayPlanMatch) {
     const days = parseInt(dayPlanMatch[1]);
-    const skills = analysisSummary?.skills?.missing?.slice(0, 3).map(s => s.name).join(', ') || 'required skills';
+    const missingSkills = analysisSummary?.skills?.missing?.slice(0, 3).map(s => s.name).join(', ') || 'key technical skills';
     
-    let plan = "";
-    if (days <= 7) {
-      plan = `Here's a ${days}-day learning plan:\n\n1. Days 1-2: Research fundamentals\n2. Days 3-4: Follow structured tutorials\n3. Days 5-${days}: Practice with small projects\n\nFocus on ${skills}.`;
-    } else if (days <= 30) {
-      plan = `Here's a ${days}-day comprehensive plan:\n\nWeek 1: Fundamentals\nWeek 2: Intermediate concepts\nWeek 3: Projects\nWeek 4: Portfolio building\n\nFocus on ${skills}.`;
-    } else {
-      plan = `Here's a ${days}-day mastery plan:\n\nPhase 1 (1 month): Fundamentals\nPhase 2 (1 month): Intermediate\nPhase 3 (1 month): Advanced\nRemaining time: Specialization\n\nFocus on ${skills}.`;
+    // We can return a structured prompt response or handle it via AI with specific instructions
+    // Here we let AI handle it but with a very specific system instruction override
+    const planPrompt = `Create a structured ${days}-day learning plan for: ${missingSkills}. 
+    Format it strictly as:
+    - Phase 1 (Days 1-${Math.floor(days/3)}): Fundamentals
+    - Phase 2 (Days ${Math.floor(days/3)+1}-${Math.floor(days*2/3)}): Projects
+    - Phase 3 (Days ${Math.floor(days*2/3)+1}-${days}): Advanced Topics
+    Keep it concise.`;
+    
+    try {
+      const completion = await groq.chat.completions.create({
+        messages: [{ role: "user", content: planPrompt }],
+        model: "llama-3.1-8b-instant",
+        temperature: 0.3,
+        max_tokens: 600
+      });
+      return res.json({
+        response: fixAIResponseFormatting(completion.choices[0]?.message?.content),
+        success: true,
+        source: "groq-plan"
+      });
+    } catch (e) {
+      console.error("Plan generation failed", e);
     }
-    
-    return res.json({
-      response: plan,
-      success: true,
-      source: "learning-plan"
-    });
   }
 
-  const systemPrompt = `You are Career Compass AI. Provide concise, practical career advice.
+  // 4. Standard Context-Aware Chat
+  // Construct a context string from the analysis summary
+  const contextData = analysisSummary ? `
+    USER CONTEXT:
+    - Match Score: ${analysisSummary.score}/10
+    - Missing Skills: ${analysisSummary.skills?.missing?.slice(0, 5).map(s => s.name).join(', ') || "None"}
+    - Present Skills: ${analysisSummary.skills?.present?.slice(0, 5).map(s => s.name).join(', ') || "None"}
+    - Experience Level: ${analysisSummary.experienceLevel}
+  ` : "No analysis context available.";
 
-User's Current Match: ${analysisSummary?.score || 'N/A'}/10
-Key Skills: ${analysisSummary?.skills?.present?.slice(0,3).map(s => s.name).join(', ') || 'None listed'}
-Missing Skills: ${analysisSummary?.skills?.missing?.slice(0,3).map(s => s.name).join(', ') || 'None'}
-
-Keep responses under 300 words. Be specific and actionable.`;
+  const systemPrompt = `You are Career Compass AI, a helpful and encouraging career coach.
+  ${contextData}
+  
+  Your Goal: specific, actionable advice based on the user's missing skills and match score.
+  
+  Guidelines:
+  1. Be concise (under 150 words usually).
+  2. Use bullet points for lists.
+  3. If asked about a missing skill, suggest a specific project idea.
+  4. Do not mention "I am an AI" repeatedly.
+  
+  Formatting:
+  - Do not use markdown headers (###).
+  - Use simple numbering (1. 2. 3.) or bullets (-).
+  `;
 
   try {
+    // Limit conversation history to last 3 turns to save tokens
+    const recentHistory = conversation.slice(-3).map(msg => ({
+      role: msg.sender === 'user' ? 'user' : 'assistant',
+      content: msg.text.substring(0, 200) // Truncate long messages
+    }));
+
     const completion = await groq.chat.completions.create({
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: userMessage.substring(0, 500) }
+        ...recentHistory,
+        { role: "user", content: userMessage }
       ],
-      model: "llama-3.1-8b-instant",
-      temperature: 0.7,
-      max_tokens: 500
+      model: "llama-3.1-8b-instant", // Fast and efficient
+      temperature: 0.6,
+      max_tokens: 450,
+      stream: false
     });
-    
+
     let aiResponse = completion.choices[0]?.message?.content;
-    
-    if (!aiResponse || aiResponse.trim().length < 10) {
-      aiResponse = "I can help with skill gaps, resume tips, interview prep, and learning plans. What would you like to focus on?";
+
+    // 5. Clean up formatting
+    if (aiResponse) {
+      aiResponse = fixAIResponseFormatting(aiResponse);
+    } else {
+      throw new Error("Empty response from AI");
     }
-    
+
     res.json({
       response: aiResponse,
       success: true,
@@ -828,10 +843,11 @@ Keep responses under 300 words. Be specific and actionable.`;
     });
 
   } catch (error) {
-    console.error("API Error:", error.message);
+    console.error("AI Chat Error:", error.message);
     
+    // Fallback response
     res.json({
-      response: "I can help with skill gaps, resume tips, interview prep, and learning plans. What would you like to focus on?",
+      response: "I'm having trouble connecting to the career database right now. However, I suggest focusing on closing the skill gaps identified in your analysis report.",
       success: false,
       source: "fallback"
     });
