@@ -27,26 +27,41 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const PORT = process.env.PORT || 5000;
 
-
 async function extractTextFromPDF(buffer) {
   console.log("🔍 Starting PDF extraction...");
 
   try {
+    // 1. Basic Parse
     const data = await pdf(buffer);
- 
-    if (!data || !data.text || data.text.trim().length < 10) {
-      throw new Error("No text found in PDF");
+    
+    // 2. Check if we actually got text
+    if (!data || !data.text) {
+      console.warn("⚠️ pdf-parse returned empty object");
+      throw new Error("PDF parsing returned no data");
     }
 
-    const text = data.text;
-    console.log(`✅ pdf-parse extracted ${text.length} characters`);
-    
- 
-    return cleanExtractedText(text, 'pdf');
+    const rawText = data.text;
+    console.log(`📄 Raw text length: ${rawText.length}`);
+
+    // 3. Clean the text (remove excessive whitespace)
+    const cleanedText = rawText
+      .replace(/\n/g, " ")       // Replace newlines with spaces
+      .replace(/\s\s+/g, " ")    // Replace multiple spaces with single space
+      .trim();
+
+    // 4. Validate content length (lowered threshold)
+    if (cleanedText.length < 10) {
+      console.warn("⚠️ PDF text too short");
+      throw new Error("Extracted text is too short. File might be image-based.");
+    }
+
+    console.log(`✅ Extraction successful. Length: ${cleanedText.length}`);
+    return cleanedText;
 
   } catch (err) {
-    console.log("pdf-parse failed:", err.message);
-    throw new Error("Could not parse PDF. Please try converting to DOCX or TXT.");
+    console.error("❌ PDF Extraction Failed:", err.message);
+    // Provide a clear error to the user
+    throw new Error("Could not read PDF text. Please ensure it is a text-based PDF, not a scan.");
   }
 }
 
