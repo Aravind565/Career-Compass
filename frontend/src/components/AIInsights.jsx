@@ -152,66 +152,42 @@ const AIInsights = ({
   };
 
   const sendMessage = async (text = inputMessage, isQuick = false) => {
-    if (!text || !text.trim()) return;
-    const userText = isQuick ? text : inputMessage;
-    const userMsg = {
-      id: `u-${Date.now()}`,
-      sender: "user",
-      text: userText,
-      timestamp: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, userMsg]);
-    if (!isQuick) setInputMessage("");
-    setIsLoading(true);
-  // ⚠️ CRITICAL: Log the exact URL
-  const backendUrl = import.meta.env.VITE_BACKEND_URL;
-  console.log("🔗 Backend URL:", backendUrl);
-  console.log("📤 Full URL:", `${backendUrl}/ai-chat`);
-   try {
-  const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/ai-chat`, {
-    method: "POST",
-    headers: { 
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      jobDesc: jobDescription || "",
-      resumeText: resumeText || "",
-      userMessage: userMsg.text,
-      analysisSummary: analysis,
-      conversation: messages.slice(-4).map((m) => ({ 
-        sender: m.sender, 
-        text: m.text?.substring(0, 300) 
-      })),
-    }),
-  });
-
-  console.log("📥 Response status:", response.status);
+  if (!text || !text.trim()) return;
   
-  if (!response.ok) {
-    console.error("❌ Response not OK:", await response.text());
-    throw new Error(`API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  console.log("✅ Received data from backend:", data);
+  const userText = isQuick ? text : inputMessage;
+  const userMsg = {
+    id: `u-${Date.now()}`,
+    sender: "user",
+    text: userText,
+    timestamp: new Date().toISOString(),
+  };
   
-  // ⚠️ IMPORTANT: Check if backend returned success: false
-  if (data.success === false) {
-    // Use the error response from backend
-    const errorText = data.response || "I'm having technical difficulties. Please try again.";
+  setMessages((prev) => [...prev, userMsg]);
+  if (!isQuick) setInputMessage("");
+  setIsLoading(true);
+
+  try {
+    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/ai-chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jobDesc: jobDescription || "",
+        resumeText: resumeText || "",
+        userMessage: userMsg.text,
+        analysisSummary: analysis,
+        conversation: messages.slice(-4).map((m) => ({ 
+          sender: m.sender, 
+          text: m.text?.substring(0, 300) 
+        })),
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const data = await response.json();
     
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: `ai-error-${Date.now()}`,
-        sender: "ai",
-        text: errorText,
-        timestamp: new Date().toISOString(),
-        type: "response",
-      },
-    ]);
-  } else {
-    // Success response from backend
     setMessages((prev) => [
       ...prev,
       {
@@ -222,25 +198,27 @@ const AIInsights = ({
         type: "response",
       },
     ]);
+    
+  } catch (error) {
+    console.error("Error:", error);
+    
+    // Even on frontend error, try to provide something helpful
+    const fallback = `I can help with:\n\n• **Resume Optimization** - Action verbs, quantifiable achievements\n• **Skill Development** - Python, cloud computing, etc.\n• **Interview Prep** - STAR method, technical questions\n• **Career Strategy** - Job search, networking, portfolio building\n\nWhat specific area would you like guidance on?`;
+    
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `ai-error-${Date.now()}`,
+        sender: "ai",
+        text: fallback,
+        timestamp: new Date().toISOString(),
+        type: "response",
+      },
+    ]);
+  } finally {
+    setIsLoading(false);
   }
-} catch (e) {
-  console.error("❌ Fetch error:", e);
-  
-  // SIMPLE error message - NOT the generateFallbackResponse!
-  setMessages((prev) => [
-    ...prev,
-    {
-      id: `ai-error-${Date.now()}`,
-      sender: "ai",
-      text: "I'm experiencing connection issues. Please check your internet and try again.",
-      timestamp: new Date().toISOString(),
-      type: "response",
-    },
-  ]);
-} finally {
-  setIsLoading(false);
-}
-  };
+};
 
   const resetConversation = () => {
     setMessages([

@@ -737,147 +737,169 @@ if (!resumeText || resumeText.trim().length < 50) {
 });
 
 app.post("/ai-chat", async (req, res) => {
-  console.log("=== AI CHAT REQUEST ===");
-  console.log("Message:", req.body.userMessage);
-  
   try {
-    const { 
-      userMessage, 
-      conversation = [], 
+    const {
+      userMessage,
+      conversation = [],
       analysisSummary = null,
       jobDesc = "",
       resumeText = ""
     } = req.body;
 
-    // Validate input
-    if (!userMessage || userMessage.trim().length === 0) {
-      return res.status(400).json({ 
-        response: "Please provide a message.",
+    /* =========================
+       1. VALIDATION
+    ========================= */
+    if (!userMessage || !userMessage.trim()) {
+      return res.status(400).json({
         success: false,
-        source: "validation"
+        response: "Please enter a valid question."
       });
     }
 
     const lowerMsg = userMessage.toLowerCase().trim();
-    
-    // ⚠️ FIX: Only handle EXACT greetings locally, not partial matches
-    const exactGreetings = {
-      'hello': "Hello! I'm Career Compass AI. How can I help with your career today?",
-      'hi': "Hi! I'm ready to help with your career questions.",
-      'hey': "Hey! What career advice can I provide today?",
-      'thank you': "You're welcome! Happy to help with your career journey.",
-      'thanks': "You're welcome! Feel free to ask more questions.",
-      'bye': "Goodbye! Best of luck with your job search!",
-      'goodbye': "Goodbye! Come back anytime for career advice."
+
+    /* =========================
+       2. LOCAL FAST RESPONSES
+    ========================= */
+    const localReplies = {
+      hello: "Hello! I’m Career Compass AI. How can I help you today?",
+      hi: "Hi! Ask me about your resume, skills, or career plan.",
+      thanks: "You're welcome! Feel free to ask anything else.",
+      bye: "Goodbye! Best of luck with your career journey."
     };
 
-    // ⚠️ FIX: Check for EXACT match or simple variations
-    let isExactGreeting = false;
-    const cleanMsg = lowerMsg.replace(/[!?.,]/g, '').trim();
-    
-    for (const [greeting, response] of Object.entries(exactGreetings)) {
-      // Check for exact match or greeting at start
-      if (cleanMsg === greeting || cleanMsg.startsWith(greeting + ' ')) {
+    for (const key in localReplies) {
+      if (lowerMsg === key) {
         return res.json({
-          response: response,
           success: true,
-          source: "local-greeting"
+          source: "local",
+          response: localReplies[key]
         });
       }
     }
 
-    // ⚠️ CRITICAL: For ALL other queries, call Groq API
-    console.log(`🤖 Calling Groq API for: "${userMessage}"`);
-    
-    // Build context from analysis
-    let context = `You are Career Compass AI, an expert career coach and resume advisor.
-    
-USER'S CURRENT ANALYSIS:
-- Match Score: ${analysisSummary?.score || 'N/A'}/10
-- Experience Level: ${analysisSummary?.experienceLevel || 'Not specified'}
-- Strengths: ${analysisSummary?.skills?.present?.map(s => s.name).join(', ') || 'None listed'}
-- Areas to Improve: ${analysisSummary?.skills?.missing?.map(s => s.name).join(', ') || 'None'}`;
+    /* =========================
+       3. BUILD SMART CONTEXT
+    ========================= */
+    let analysisContext = "";
+    if (analysisSummary) {
+      const score = analysisSummary.score ?? "N/A";
+      const strengths =
+        analysisSummary.skills?.present?.map(s => s.name).join(", ") || "N/A";
+      const gaps =
+        analysisSummary.skills?.missing?.map(s => s.name).join(", ") || "None";
 
-    if (jobDesc && jobDesc.length > 50) {
-      context += `\n\nJOB CONTEXT: ${jobDesc.substring(0, 300)}`;
+      analysisContext = `
+Match score: ${score}/10
+Strengths: ${strengths}
+Skill gaps: ${gaps}
+      `;
     }
 
-    // Add response guidelines
-    context += `
-
-RESPONSE GUIDELINES:
-1. Be SPECIFIC and actionable
-2. Reference the user's strengths when relevant
-3. If they ask about skills or learning, suggest concrete resources
-4. For resume questions, give practical editing tips
-5. For "how to match", provide tailored strategy
-6. Keep responses concise but helpful
-7. Use bullet points or numbered lists for clarity`;
-
-    // Prepare conversation for Groq
+    /* =========================
+       4. SYSTEM PROMPT (VERY IMPORTANT)
+    ========================= */
     const messages = [
       {
         role: "system",
-        content: context
+        content: `
+You are Career Compass AI, a professional career coach.
+
+Rules:
+- Answer EXACTLY what the user asks
+- Be clear, practical, and structured
+- Short questions → short answers
+- Plans → step-by-step bullets
+- Never mention errors or technical issues
+- Never repeat the same answer
+- Use confident, human tone
+        `
       }
     ];
 
-    // Add conversation history (last 2 exchanges)
-    if (conversation && conversation.length > 0) {
-      conversation.slice(-4).forEach(msg => {
-        messages.push({
-          role: msg.sender === "user" ? "user" : "assistant",
-          content: msg.text?.substring(0, 200) || ""
-        });
+    if (analysisContext) {
+      messages.push({
+        role: "system",
+        content: analysisContext
       });
     }
 
-    // Add current message
+    if (jobDesc && jobDesc.length > 50) {
+      messages.push({
+        role: "system",
+        content: `Job description summary: ${jobDesc.slice(0, 300)}`
+      });
+    }
+
+    /* =========================
+       5. CONVERSATION MEMORY
+    ========================= */
+    conversation.slice(-4).forEach(msg => {
+      messages.push({
+        role: msg.sender === "user" ? "user" : "assistant",
+        content: msg.text
+      });
+    });
+
+    /* =========================
+       6. USER QUESTION (ONCE)
+    ========================= */
     messages.push({
       role: "user",
       content: userMessage
     });
 
-    console.log(`📤 Sending ${messages.length} messages to Groq API`);
-
-    // ⚠️ CALL GROQ API FOR EVERYTHING EXCEPT EXACT GREETINGS
+    /* =========================
+       7. GROQ CALL
+    ========================= */
     const completion = await groq.chat.completions.create({
-      messages: messages,
-      model: "llama-3.1-8b-instant", // Fast and good quality
-      temperature: 0.7,
-      max_tokens: 600, // Enough for detailed responses
+      model: "llama-3.1-8b-instant",
+      messages,
+      temperature: 0.6,
+      max_tokens: 400,
       top_p: 0.9,
-      stream: false,
-      timeout: 10000 // 10 second timeout
+      stream: false
     });
 
-    const aiResponse = completion.choices[0]?.message?.content || 
-      "I appreciate your question. Based on your strong skills in Java, Python, and JavaScript, you're well-positioned for this role.";
-    
-    console.log(`✅ Groq API response (${aiResponse.length} chars)`);
+    const aiResponse =
+      completion.choices?.[0]?.message?.content?.trim();
 
+    if (!aiResponse) {
+      throw new Error("Empty AI response");
+    }
+
+    /* =========================
+       8. SUCCESS RESPONSE
+    ========================= */
     return res.json({
-      response: aiResponse,
       success: true,
       source: "groq-ai",
       model: "llama-3.1-8b-instant",
+      response: aiResponse,
       tokens: completion.usage?.total_tokens || 0
     });
 
   } catch (error) {
-    console.error("❌ AI Chat Error:", error.message);
-    
-    // Provide helpful fallback
-    const fallback = `I'm currently experiencing technical difficulties. Based on your analysis score of ${req.body?.analysisSummary?.score || '10'}/10, you have strong skills in ${req.body?.analysisSummary?.skills?.present?.map(s => s.name).join(', ') || 'programming'}. Focus on highlighting these in your applications.`;
-    
+    console.error("AI CHAT ERROR:", error.message);
+
+    /* =========================
+       9. SMART FALLBACK (RARE)
+    ========================= */
+    let fallback = "I can help with resume improvement, skill planning, and interview prep.";
+
+    if (req.body?.analysisSummary?.score === 10) {
+      fallback = "Your profile already matches this role very well. Focus on showcasing impact and interview readiness.";
+    }
+
     return res.json({
-      response: fallback,
       success: false,
-      source: "error-fallback",
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      source: "fallback",
+      response: fallback
     });
   }
 });
+
+
 app.get("/ai-status", async (req, res) => {
   try {
     // Test the AI model
