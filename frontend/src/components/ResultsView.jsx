@@ -56,7 +56,6 @@ const ResultsView = ({
   const [searchSkill, setSearchSkill] = useState('');
   const [shareCopied, setShareCopied] = useState(false);
 
-  // Safe data handling with defaults
   const safeResult = {
     score: result?.score || 0,
     atsScore: result?.atsScore || 0,
@@ -138,7 +137,7 @@ const ResultsView = ({
 
   return (
     <div className="w-full max-w-7xl mx-auto pb-12 px-2 sm:px-4 lg:px-6 font-sans">
-   {/* Header */}
+
 <div className="relative mb-10 pt-6">
 
   <div className="absolute inset-0 bg-gradient-to-r from-indigo-400/10 via-purple-400/10 to-pink-400/10 blur-2xl -z-10 rounded-3xl" />
@@ -290,7 +289,6 @@ const ResultsView = ({
 )}
 <br></br>
 
-{/* Tabs */}
 <div className="sticky top-14 sm:top-20 lg:top-24 z-20 mb-8 overflow-x-auto pb-2 scrollbar-hide ">
 <div className="
   flex items-center gap-2 
@@ -343,7 +341,7 @@ const ResultsView = ({
   </div>
 )}
 
-     {/* OVERVIEW */}
+
 {activeTab === "overview" && (
   <div className="space-y-8">
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -573,7 +571,6 @@ const ResultsView = ({
 )}
 
 
-        {/* SKILLS TAB */}
 {activeTab === "skills" && (
   <div className="space-y-8">
 
@@ -747,7 +744,6 @@ const ResultsView = ({
 )}
 
 
-        {/* LEARNING PATH TAB */}
 {activeTab === "learning" && (
   <div className="grid lg:grid-cols-3 gap-8">
 
@@ -931,7 +927,6 @@ const ResultsView = ({
 )}
 
 
-       {/* GUIDANCE TAB */}
 {activeTab === "guidance" && (
   <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-3xl p-6 lg:p-10 shadow-sm">
     
@@ -1019,7 +1014,6 @@ const ResultsView = ({
   </div>
 )}
 
-{/* INSIGHTS TAB */}
 {activeTab === "insights" && (
   <>
     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">

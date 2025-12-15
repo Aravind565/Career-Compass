@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
+
 import {
   MessageSquare,
   Send,
@@ -201,8 +203,7 @@ const AIInsights = ({
     
   } catch (error) {
     console.error("Error:", error);
-    
-    // Even on frontend error, try to provide something helpful
+ 
     const fallback = `I can help with:\n\n• **Resume Optimization** - Action verbs, quantifiable achievements\n• **Skill Development** - Python, cloud computing, etc.\n• **Interview Prep** - STAR method, technical questions\n• **Career Strategy** - Job search, networking, portfolio building\n\nWhat specific area would you like guidance on?`;
     
     setMessages((prev) => [
@@ -232,7 +233,6 @@ const AIInsights = ({
     ]);
   };
 
-  // quick suggestions & topics
   const quickQuestions = [
     "How can I better match this job?",
     "What skills should I prioritize learning?",
@@ -245,12 +245,11 @@ const AIInsights = ({
     { icon: Zap, label: "Interview Prep", query: "What interview questions should I expect?" },
   ];
 
-  // UI helpers
   const safeNumber = (v) => (v === undefined || v === null ? "--" : v);
 
   return (
     <div className="w-full max-w-4xl mx-auto p-2 sm:p-4">
-      {/* HEADER */}
+
       <div className="sticky top-0 z-30 bg-white/70 dark:bg-gray-900/70 backdrop-blur-md border-b border-gray-200/60 dark:border-gray-800/60 rounded-b-xl px-3 py-3">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
@@ -327,7 +326,7 @@ const AIInsights = ({
           </div>
         </div>
 
-        {/* SMALL QUICK STATS - responsive */}
+      
         <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
           <div className="bg-gray-50 dark:bg-gray-800/60 p-2 rounded-lg border border-gray-100 dark:border-gray-700 text-center">
             <div className="text-xs text-gray-500">Messages</div>
@@ -350,10 +349,9 @@ const AIInsights = ({
         </div>
       </div>
 
-      {/* CHAT CARD */}
       <div className="mt-4 relative">
         <div className="flex flex-col h-[70vh] md:h-[72vh] lg:h-[72vh] bg-white dark:bg-gray-900/60 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-lg overflow-hidden">
-          {/* Messages area */}
+      
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
             {messages.map((msg) => {
               const isUser = msg.sender === "user";
@@ -377,8 +375,32 @@ const AIInsights = ({
                           role="article"
                           aria-label={isUser ? "Your message" : "AI message"}
                         >
-                          <div className="text-sm sm:text-base leading-relaxed">{formatMessageText(msg.text, msg.sender === "user")}
+                   <div className="text-sm sm:text-base leading-relaxed prose dark:prose-invert max-w-none">
+  {msg.sender === "user" ? (
+    formatMessageText(msg.text, true)
+  ) : (
+    <ReactMarkdown
+      components={{
+        strong: ({ children }) => (
+          <strong className="font-semibold text-gray-900 dark:text-gray-100">
+            {children}
+          </strong>
+        ),
+        ul: ({ children }) => (
+          <ul className="list-disc ml-5 space-y-1">{children}</ul>
+        ),
+        ol: ({ children }) => (
+          <ol className="list-decimal ml-5 space-y-1">{children}</ol>
+        ),
+        li: ({ children }) => <li>{children}</li>,
+        p: ({ children }) => <p className="mb-2">{children}</p>,
+      }}
+    >
+      {msg.text}
+    </ReactMarkdown>
+  )}
 </div>
+
                         </div>
 
                         <div className="mt-2 text-xs text-gray-400 dark:text-gray-400 flex items-center gap-2 justify-between">
@@ -394,7 +416,7 @@ const AIInsights = ({
                           </div>
                         </div>
 
-                        {/* feedback buttons for AI responses */}
+                
                         {!isUser && msg.type !== "welcome" && (
                           <div className="mt-2 flex gap-2 justify-start">
                             <button className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
@@ -469,7 +491,7 @@ const AIInsights = ({
             </div>
           )}
 
-          {/* Input area */}
+     
           <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900/60">
             <div className="flex gap-3 items-center">
               <div className="relative flex-1">
@@ -505,8 +527,6 @@ const AIInsights = ({
             </div>
           </div>
         </div>
-
-        {/* footer tips */}
         <div className="mt-3 flex items-start gap-3 p-3 bg-white/50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800 rounded-lg">
           <Lightbulb className="w-5 h-5 text-indigo-600" />
           <div>

@@ -129,7 +129,6 @@ const handleAnalyzeClick = async () => {
         </p>
       </div>
 
-      {/* Main Card */}
       <div
         className="
           bg-white/70 dark:bg-gray-900/50 backdrop-blur-2xl
@@ -139,7 +138,6 @@ const handleAnalyzeClick = async () => {
       >
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
 
-          {/* Job Description */}
           <div>
             <h3 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 mb-3 text-lg">
               <Briefcase className="text-indigo-500" size={18} />
@@ -162,8 +160,6 @@ const handleAnalyzeClick = async () => {
               "
             />
           </div>
-
-          {/* Resume Section */}
           <div>
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 text-lg">
@@ -190,8 +186,6 @@ const handleAnalyzeClick = async () => {
                 ))}
               </div>
             </div>
-
-            {/* UPLOAD MODE */}
             {resumeMode === "upload" ? (
               <div
                 onClick={() => fileInputRef.current?.click()}
@@ -249,7 +243,7 @@ transition-all font-semibold"
                 )}
               </div>
             ) : (
-              /* TEXT MODE */
+     
               <textarea
                 value={resumeTextLocal}
                 onChange={(e) => {

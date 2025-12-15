@@ -95,7 +95,7 @@ const Header = ({ theme, toggleTheme, onNewAnalysis }) => {
               <span className="sm:hidden">New</span>
             </button>
 
-            {/* Theme Toggle */}
+        
             <button
               onClick={toggleTheme}
               className="

@@ -7,7 +7,6 @@ const { PDFDocument } = require('pdf-lib');
 const pdf = require('pdf-parse');
 require("dotenv").config();
 
-// Initialize App
 const app = express();
 const upload = multer({ 
   storage: multer.memoryStorage(),
@@ -24,7 +23,6 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Initialize Groq
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const PORT = process.env.PORT || 5000;
@@ -33,10 +31,9 @@ async function extractTextFromPDF(buffer) {
   console.log("🔍 Starting PDF extraction...");
 
   try {
-    // 1. Basic Parse
+
     const data = await pdf(buffer);
-    
-    // 2. Check if we actually got text
+
     if (!data || !data.text) {
       console.warn("⚠️ pdf-parse returned empty object");
       throw new Error("PDF parsing returned no data");
@@ -45,13 +42,11 @@ async function extractTextFromPDF(buffer) {
     const rawText = data.text;
     console.log(`📄 Raw text length: ${rawText.length}`);
 
-    // 3. Clean the text (remove excessive whitespace)
     const cleanedText = rawText
-      .replace(/\n/g, " ")       // Replace newlines with spaces
-      .replace(/\s\s+/g, " ")    // Replace multiple spaces with single space
+      .replace(/\n/g, " ")      
+      .replace(/\s\s+/g, " ")   
       .trim();
 
-    // 4. Validate content length (lowered threshold)
     if (cleanedText.length < 10) {
       console.warn("⚠️ PDF text too short");
       throw new Error("Extracted text is too short. File might be image-based.");
@@ -62,7 +57,7 @@ async function extractTextFromPDF(buffer) {
 
   } catch (err) {
     console.error("❌ PDF Extraction Failed:", err.message);
-    // Provide a clear error to the user
+ 
     throw new Error("Could not read PDF text. Please ensure it is a text-based PDF, not a scan.");
   }
 }
@@ -137,20 +132,20 @@ function cleanExtractedText(text, fileType) {
   
   let cleaned = text;
   cleaned = cleaned
-    .replace(/<[^>]+>/g, ' ')                    // Remove HTML/XML tags
-    .replace(/&[a-z]+;/gi, ' ')                  // Remove HTML entities
-    .replace(/\\[a-zA-Z]+\{[^}]*\}/g, ' ')       // Remove LaTeX commands
-    .replace(/\(cid:\d+\)/g, ' ')                // Remove PDF CID markers
-    .replace(/\\[a-zA-Z]+/g, ' ')                // Remove other escape sequences
-    .replace(/[{}[\]()]/g, ' ')                  // Remove brackets
-    .replace(/\$\$/g, ' ')                       // Remove LaTeX math markers
-    .replace(/\$\w+/g, ' ')                      // Remove dollar signs
-    .replace(/\/[A-Z][a-zA-Z]+\b/g, ' ')         // Remove PDF font names
-    .replace(/\/(Font|Type|Subtype|BaseFont)\s+\/[A-Za-z0-9]+\b/g, ' ') // PDF artifacts
-    .replace(/\b(endobj|endstream|stream|obj)\b/gi, ' ') // PDF structure
-    .replace(/\/[A-Za-z0-9]+\s+do\b/g, ' ')      // PDF operators
-    .replace(/BT\s+ET/g, ' ')                    // PDF text blocks
-    .replace(/\d+\s+\d+\s+[A-Za-z]+\b/g, ' ');   // PDF numbers
+    .replace(/<[^>]+>/g, ' ')                   
+    .replace(/&[a-z]+;/gi, ' ')                 
+    .replace(/\\[a-zA-Z]+\{[^}]*\}/g, ' ')      
+    .replace(/\(cid:\d+\)/g, ' ')          
+    .replace(/\\[a-zA-Z]+/g, ' ')             
+    .replace(/[{}[\]()]/g, ' ')               
+    .replace(/\$\$/g, ' ')                    
+    .replace(/\$\w+/g, ' ')                     
+    .replace(/\/[A-Z][a-zA-Z]+\b/g, ' ')         
+    .replace(/\/(Font|Type|Subtype|BaseFont)\s+\/[A-Za-z0-9]+\b/g, ' ') 
+    .replace(/\b(endobj|endstream|stream|obj)\b/gi, ' ')
+    .replace(/\/[A-Za-z0-9]+\s+do\b/g, ' ')    
+    .replace(/BT\s+ET/g, ' ')                  
+    .replace(/\d+\s+\d+\s+[A-Za-z]+\b/g, ' '); 
   
   const metadataPatterns = [
    
@@ -183,10 +178,10 @@ function cleanExtractedText(text, fileType) {
   
 
   cleaned = cleaned
-    .replace(/\s+/g, ' ')                     // Multiple spaces to single
-    .replace(/\n\s*\n/g, '\n')                // Multiple newlines to single
-    .replace(/^\s+|\s+$/g, '')                // Trim
-    .replace(/\n{3,}/g, '\n\n');              // Limit consecutive newlines
+    .replace(/\s+/g, ' ')                 
+    .replace(/\n\s*\n/g, '\n')               
+    .replace(/^\s+|\s+$/g, '')                
+    .replace(/\n{3,}/g, '\n\n');            
 
   const lines = cleaned.split('\n');
   const validLines = lines.filter(line => {
@@ -199,12 +194,12 @@ function cleanExtractedText(text, fileType) {
     
     const lowerLine = trimmed.toLowerCase();
     const badPatterns = [
-      /^\d+\s*$/,                             // Just numbers
-      /^[•\-*]\s*$/,                          // Just bullet points
-      /^page\s*\d+/i,                         // Page numbers
-      /^created\s+by/i,                       // Creation metadata
-      /^downloaded\s+from/i,                  // Download metadata
-      /^do\s+not\s+edit/i,                    // Edit warnings
+      /^\d+\s*$/,                        
+      /^[•\-*]\s*$/,                       
+      /^page\s*\d+/i,                    
+      /^created\s+by/i,                      
+      /^downloaded\s+from/i,                  
+      /^do\s+not\s+edit/i,                 
     ];
     
     return !badPatterns.some(pattern => pattern.test(lowerLine));
@@ -224,28 +219,25 @@ async function extractText(file) {
       throw new Error("Empty file");
     }
     
-    // PDF files
+
     if (file.mimetype === "application/pdf" || 
         file.originalname.toLowerCase().endsWith('.pdf')) {
       return await extractTextFromPDF(file.buffer);
     }
     
-    // DOCX files
     else if (file.mimetype.includes("word") || 
              file.mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
              file.originalname.toLowerCase().endsWith('.docx')) {
       return await extractTextFromDOCX(file.buffer);
     }
-    
-    // TXT files
+
     else if (file.mimetype === "text/plain" || 
              file.originalname.toLowerCase().endsWith('.txt')) {
       const text = file.buffer.toString('utf-8');
       console.log(`📝 Plain text: ${text.length} characters`);
       return cleanExtractedText(text, 'txt');
     }
-    
-    // Unsupported formats
+
     else if (file.mimetype.includes("msword") ||
              file.originalname.toLowerCase().endsWith('.doc')) {
       throw new Error("DOC format not supported. Please convert to PDF or DOCX.");
@@ -574,9 +566,9 @@ app.post("/analyze", upload.single("resume"), async (req, res) => {
       console.log(`Processing uploaded file: ${file.originalname}`);
       try {
        resumeText = await extractText(file);
-console.log(`✅ Extracted ${resumeText.length} characters from file`);
+      console.log(`✅ Extracted ${resumeText.length} characters from file`);
 
-if (!resumeText || resumeText.trim().length < 50) {
+    if (!resumeText || resumeText.trim().length < 50) {
           return res.status(400).json({
             error: "The PDF content is too short or unreadable. It might be an image-based scan.",
             type: "extraction_error",
@@ -746,9 +738,6 @@ app.post("/ai-chat", async (req, res) => {
       resumeText = ""
     } = req.body;
 
-    /* =========================
-       1. VALIDATION
-    ========================= */
     if (!userMessage || !userMessage.trim()) {
       return res.status(400).json({
         success: false,
@@ -758,9 +747,7 @@ app.post("/ai-chat", async (req, res) => {
 
     const lowerMsg = userMessage.toLowerCase().trim();
 
-    /* =========================
-       2. LOCAL FAST RESPONSES
-    ========================= */
+ 
     const localReplies = {
       hello: "Hello! I’m Career Compass AI. How can I help you today?",
       hi: "Hi! Ask me about your resume, skills, or career plan.",
@@ -778,9 +765,6 @@ app.post("/ai-chat", async (req, res) => {
       }
     }
 
-    /* =========================
-       3. BUILD SMART CONTEXT
-    ========================= */
     let analysisContext = "";
     if (analysisSummary) {
       const score = analysisSummary.score ?? "N/A";
@@ -796,9 +780,6 @@ Skill gaps: ${gaps}
       `;
     }
 
-    /* =========================
-       4. SYSTEM PROMPT (VERY IMPORTANT)
-    ========================= */
     const messages = [
       {
         role: "system",
@@ -831,9 +812,6 @@ Rules:
       });
     }
 
-    /* =========================
-       5. CONVERSATION MEMORY
-    ========================= */
     conversation.slice(-4).forEach(msg => {
       messages.push({
         role: msg.sender === "user" ? "user" : "assistant",
@@ -841,17 +819,11 @@ Rules:
       });
     });
 
-    /* =========================
-       6. USER QUESTION (ONCE)
-    ========================= */
     messages.push({
       role: "user",
       content: userMessage
     });
 
-    /* =========================
-       7. GROQ CALL
-    ========================= */
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
       messages,
@@ -867,10 +839,6 @@ Rules:
     if (!aiResponse) {
       throw new Error("Empty AI response");
     }
-
-    /* =========================
-       8. SUCCESS RESPONSE
-    ========================= */
     return res.json({
       success: true,
       source: "groq-ai",
@@ -882,9 +850,6 @@ Rules:
   } catch (error) {
     console.error("AI CHAT ERROR:", error.message);
 
-    /* =========================
-       9. SMART FALLBACK (RARE)
-    ========================= */
     let fallback = "I can help with resume improvement, skill planning, and interview prep.";
 
     if (req.body?.analysisSummary?.score === 10) {
@@ -902,7 +867,7 @@ Rules:
 
 app.get("/ai-status", async (req, res) => {
   try {
-    // Test the AI model
+
     const start = Date.now();
     const completion = await groq.chat.completions.create({
       messages: [{ role: "user", content: "Say 'OK'" }],
