@@ -15,12 +15,14 @@ const upload = multer({
 });
 
 // Middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cors({
   origin: '*',
-  credentials: true
+  credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept']
 }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Initialize Groq
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -737,136 +739,167 @@ if (!resumeText || resumeText.trim().length < 50) {
 
 app.post("/ai-chat", async (req, res) => {
   console.log("=== AI CHAT REQUEST ===");
-  
-  const { 
-    userMessage, 
-    conversation = [], 
-    analysisSummary = null 
-  } = req.body;
-
-  // 1. Validate Input
-  if (!userMessage || userMessage.trim().length === 0) {
-    return res.status(400).json({ 
-      response: "Please provide a message.",
-      success: false
-    });
-  }
-
-  const lowerMsg = userMessage.toLowerCase().trim();
-
-  // 2. Handle Common Greetings (Save API Cost)
-  const simpleGreetings = ['thank you', 'thanks', 'hello', 'hi', 'hey', 'bye', 'goodbye'];
-  if (simpleGreetings.includes(lowerMsg.replace(/[!.]/g, ''))) {
-    return res.json({
-      response: `Hello! I'm Career Compass AI. Based on your analysis (Score: ${analysisSummary?.score || 'N/A'}/10), how can I help you improve your profile today?`,
-      success: true,
-      source: "local-greeting"
-    });
-  }
-
-  // 3. Special Logic: "X Day Learning Plan"
-  // If user asks for "30 days plan" or "7 day plan", generate it algorithmically or specifically prompt for it
-  const dayPlanMatch = lowerMsg.match(/(\d+)\s*days?\s*plan/);
-  if (dayPlanMatch) {
-    const days = parseInt(dayPlanMatch[1]);
-    const missingSkills = analysisSummary?.skills?.missing?.slice(0, 3).map(s => s.name).join(', ') || 'key technical skills';
-    
-    // We can return a structured prompt response or handle it via AI with specific instructions
-    // Here we let AI handle it but with a very specific system instruction override
-    const planPrompt = `Create a structured ${days}-day learning plan for: ${missingSkills}. 
-    Format it strictly as:
-    - Phase 1 (Days 1-${Math.floor(days/3)}): Fundamentals
-    - Phase 2 (Days ${Math.floor(days/3)+1}-${Math.floor(days*2/3)}): Projects
-    - Phase 3 (Days ${Math.floor(days*2/3)+1}-${days}): Advanced Topics
-    Keep it concise.`;
-    
-    try {
-      const completion = await groq.chat.completions.create({
-        messages: [{ role: "user", content: planPrompt }],
-        model: "llama-3.1-8b-instant",
-        temperature: 0.3,
-        max_tokens: 600
-      });
-      return res.json({
-        response: fixAIResponseFormatting(completion.choices[0]?.message?.content),
-        success: true,
-        source: "groq-plan"
-      });
-    } catch (e) {
-      console.error("Plan generation failed", e);
-    }
-  }
-
-  // 4. Standard Context-Aware Chat
-  // Construct a context string from the analysis summary
-  const contextData = analysisSummary ? `
-    USER CONTEXT:
-    - Match Score: ${analysisSummary.score}/10
-    - Missing Skills: ${analysisSummary.skills?.missing?.slice(0, 5).map(s => s.name).join(', ') || "None"}
-    - Present Skills: ${analysisSummary.skills?.present?.slice(0, 5).map(s => s.name).join(', ') || "None"}
-    - Experience Level: ${analysisSummary.experienceLevel}
-  ` : "No analysis context available.";
-
-  const systemPrompt = `You are Career Compass AI, a helpful and encouraging career coach.
-  ${contextData}
-  
-  Your Goal: specific, actionable advice based on the user's missing skills and match score.
-  
-  Guidelines:
-  1. Be concise (under 150 words usually).
-  2. Use bullet points for lists.
-  3. If asked about a missing skill, suggest a specific project idea.
-  4. Do not mention "I am an AI" repeatedly.
-  
-  Formatting:
-  - Do not use markdown headers (###).
-  - Use simple numbering (1. 2. 3.) or bullets (-).
-  `;
+  console.log("Request body:", JSON.stringify(req.body, null, 2));
 
   try {
-    // Limit conversation history to last 3 turns to save tokens
-    const recentHistory = conversation.slice(-3).map(msg => ({
-      role: msg.sender === 'user' ? 'user' : 'assistant',
-      content: msg.text.substring(0, 200) // Truncate long messages
-    }));
+    const { 
+      userMessage, 
+      conversation = [], 
+      analysisSummary = null,
+      jobDesc = "",
+      resumeText = ""
+    } = req.body;
 
-    const completion = await groq.chat.completions.create({
-      messages: [
-        { role: "system", content: systemPrompt },
-        ...recentHistory,
-        { role: "user", content: userMessage }
-      ],
-      model: "llama-3.1-8b-instant", // Fast and efficient
-      temperature: 0.6,
-      max_tokens: 450,
-      stream: false
-    });
-
-    let aiResponse = completion.choices[0]?.message?.content;
-
-    // 5. Clean up formatting
-    if (aiResponse) {
-      aiResponse = fixAIResponseFormatting(aiResponse);
-    } else {
-      throw new Error("Empty response from AI");
+    // Validate input
+    if (!userMessage || userMessage.trim().length === 0) {
+      return res.status(400).json({ 
+        response: "Please provide a message.",
+        success: false,
+        source: "validation"
+      });
     }
 
-    res.json({
-      response: aiResponse,
+    const lowerMsg = userMessage.toLowerCase().trim();
+    
+    // Handle greetings locally
+    const greetings = {
+      'hello': "Hello! I'm Career Compass AI. How can I help you today?",
+      'hi': "Hi there! Ready to boost your career prospects?",
+      'hey': "Hey! Let's work on improving your job match.",
+      'thank you': "You're welcome! Feel free to ask more questions.",
+      'thanks': "You're welcome! Happy to help.",
+      'bye': "Goodbye! Best of luck with your job search!",
+      'goodbye': "Goodbye! Come back anytime.",
+      'help': "I'm here to help! Try asking: 'What skills should I learn?' or 'How can I improve my resume?'"
+    };
+
+    for (const [greeting, response] of Object.entries(greetings)) {
+      if (lowerMsg.includes(greeting)) {
+        return res.json({
+          response: response,
+          success: true,
+          source: "local"
+        });
+      }
+    }
+
+    // Handle learning plan requests with fallback
+    const dayPlanMatch = lowerMsg.match(/(\d+)\s*days?\s*plan/);
+    if (dayPlanMatch) {
+      const days = parseInt(dayPlanMatch[1]);
+      const missingSkills = analysisSummary?.skills?.missing?.slice(0, 3).map(s => s.name).join(', ') || 'key skills';
+      
+      // LOCAL FALLBACK PLAN - NO API CALL
+      const fallbackPlan = `Here's a ${days}-day learning plan for ${missingSkills}:
+
+Phase 1 (Days 1-${Math.floor(days/3)}): Foundations
+• Watch beginner tutorials on YouTube or Coursera
+• Complete interactive coding exercises
+• Learn basic syntax and concepts
+
+Phase 2 (Days ${Math.floor(days/3)+1}-${Math.floor(days*2/3)}): Application
+• Build a small project using the skills
+• Practice daily with coding challenges
+• Join online study groups or forums
+
+Phase 3 (Days ${Math.floor(days*2/3)+1}-${days}): Mastery
+• Refine your project with best practices
+• Learn advanced features and optimization
+• Add the project to your portfolio
+
+Tip: Consistency is key! Dedicate at least 1 hour daily.`;
+
+      return res.json({
+        response: fallbackPlan,
+        success: true,
+        source: "local-plan"
+      });
+    }
+
+    // SIMPLE CONTEXT RESPONSES
+    if (lowerMsg.includes('skill') || lowerMsg.includes('learn') || lowerMsg.includes('prioritize')) {
+      const missingSkills = analysisSummary?.skills?.missing?.slice(0, 3).map(s => s.name).join(', ') || 'Python, cloud computing';
+      const score = analysisSummary?.score || 'N/A';
+      
+      const response = `Based on your analysis score of ${score}/10, prioritize learning: ${missingSkills}.
+
+1. Start with online courses (Coursera, Udemy, freeCodeCamp)
+2. Build practical projects to reinforce learning
+3. Add these skills to your resume as you learn them
+
+Which skill would you like to focus on first?`;
+      
+      return res.json({
+        response: response,
+        success: true,
+        source: "local-skills"
+      });
+    }
+
+    if (lowerMsg.includes('resume') || lowerMsg.includes('update') || lowerMsg.includes('improve')) {
+      const presentSkills = analysisSummary?.skills?.present?.slice(0, 3).map(s => s.name).join(', ') || 'your technical skills';
+      
+      const response = `To improve your resume:
+      
+1. Add a "Skills" section at the top highlighting ${presentSkills}
+2. Use bullet points starting with action verbs (Developed, Built, Optimized)
+3. Quantify achievements with numbers (e.g., "Improved performance by 30%")
+4. Tailor your resume to each job application
+5. Include relevant projects with GitHub links
+
+Would you like specific resume examples?`;
+      
+      return res.json({
+        response: response,
+        success: true,
+        source: "local-resume"
+      });
+    }
+
+    // DEFAULT RESPONSE
+    const score = analysisSummary?.score || 'N/A';
+    const present = analysisSummary?.skills?.present?.slice(0, 3).map(s => s.name).join(', ') || 'some skills';
+    const missing = analysisSummary?.skills?.missing?.slice(0, 3).map(s => s.name).join(', ') || 'a few areas';
+    
+    const defaultResponse = `I can see your analysis score is ${score}/10.
+
+Your strengths: ${present}
+Areas to improve: ${missing}
+
+Try asking me:
+• "How can I learn [specific skill]?"
+• "Give me resume tips"
+• "What projects should I build?"
+• "Create a learning schedule"`;
+
+    return res.json({
+      response: defaultResponse,
       success: true,
-      source: "groq-ai"
+      source: "local-default"
     });
 
   } catch (error) {
-    console.error("AI Chat Error:", error.message);
-    
-    // Fallback response
-    res.json({
-      response: "I'm having trouble connecting to the career database right now. However, I suggest focusing on closing the skill gaps identified in your analysis report.",
+    console.error("AI Chat Error:", error);
+    return res.json({
+      response: "I'm currently updating my systems. In the meantime, focus on the skill gaps identified in your analysis and check out online learning platforms.",
       success: false,
-      source: "fallback"
+      source: "error"
     });
   }
+});
+
+app.get("/test-ai", (req, res) => {
+  res.json({
+    status: "AI Service Active",
+    message: "Career Compass AI is running",
+    endpoints: {
+      "POST /ai-chat": "AI chat interface",
+      "POST /analyze": "Resume analysis",
+      "GET /test-ai": "This test endpoint"
+    },
+    timestamp: new Date().toISOString(),
+    version: "2.1.0"
+  });
 });
 
 

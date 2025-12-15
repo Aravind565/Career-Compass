@@ -163,7 +163,10 @@ const AIInsights = ({
     setMessages((prev) => [...prev, userMsg]);
     if (!isQuick) setInputMessage("");
     setIsLoading(true);
-
+  // ⚠️ CRITICAL: Log the exact URL
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
+  console.log("🔗 Backend URL:", backendUrl);
+  console.log("📤 Full URL:", `${backendUrl}/ai-chat`);
     try {
       const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/ai-chat`, {
         method: "POST",
@@ -178,8 +181,10 @@ const AIInsights = ({
       });
 
       if (!response.ok) throw new Error("API error");
+        console.log("📥 Response status:", response.status);
 
       const data = await response.json();
+         console.log("✅ Response data:", data);
       const aiText = data?.response || "Sorry — I couldn't generate an answer. Try rephrasing.";
 
       setMessages((prev) => [
