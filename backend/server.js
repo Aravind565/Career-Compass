@@ -736,11 +736,10 @@ if (!resumeText || resumeText.trim().length < 50) {
   }
 });
 
-
 app.post("/ai-chat", async (req, res) => {
   console.log("=== AI CHAT REQUEST ===");
-  console.log("Request body:", JSON.stringify(req.body, null, 2));
-
+  console.log("Message:", req.body.userMessage);
+  
   try {
     const { 
       userMessage, 
@@ -761,147 +760,152 @@ app.post("/ai-chat", async (req, res) => {
 
     const lowerMsg = userMessage.toLowerCase().trim();
     
-    // Handle greetings locally
-    const greetings = {
-      'hello': "Hello! I'm Career Compass AI. How can I help you today?",
-      'hi': "Hi there! Ready to boost your career prospects?",
-      'hey': "Hey! Let's work on improving your job match.",
-      'thank you': "You're welcome! Feel free to ask more questions.",
-      'thanks': "You're welcome! Happy to help.",
+    // ⚠️ FIX: Only handle EXACT greetings locally, not partial matches
+    const exactGreetings = {
+      'hello': "Hello! I'm Career Compass AI. How can I help with your career today?",
+      'hi': "Hi! I'm ready to help with your career questions.",
+      'hey': "Hey! What career advice can I provide today?",
+      'thank you': "You're welcome! Happy to help with your career journey.",
+      'thanks': "You're welcome! Feel free to ask more questions.",
       'bye': "Goodbye! Best of luck with your job search!",
-      'goodbye': "Goodbye! Come back anytime.",
-      'help': "I'm here to help! Try asking: 'What skills should I learn?' or 'How can I improve my resume?'"
+      'goodbye': "Goodbye! Come back anytime for career advice."
     };
 
-    for (const [greeting, response] of Object.entries(greetings)) {
-      if (lowerMsg.includes(greeting)) {
+    // ⚠️ FIX: Check for EXACT match or simple variations
+    let isExactGreeting = false;
+    const cleanMsg = lowerMsg.replace(/[!?.,]/g, '').trim();
+    
+    for (const [greeting, response] of Object.entries(exactGreetings)) {
+      // Check for exact match or greeting at start
+      if (cleanMsg === greeting || cleanMsg.startsWith(greeting + ' ')) {
         return res.json({
           response: response,
           success: true,
-          source: "local"
+          source: "local-greeting"
         });
       }
     }
 
-    // Handle learning plan requests with fallback
-    const dayPlanMatch = lowerMsg.match(/(\d+)\s*days?\s*plan/);
-    if (dayPlanMatch) {
-      const days = parseInt(dayPlanMatch[1]);
-      const missingSkills = analysisSummary?.skills?.missing?.slice(0, 3).map(s => s.name).join(', ') || 'key skills';
-      
-      // LOCAL FALLBACK PLAN - NO API CALL
-      const fallbackPlan = `Here's a ${days}-day learning plan for ${missingSkills}:
-
-Phase 1 (Days 1-${Math.floor(days/3)}): Foundations
-• Watch beginner tutorials on YouTube or Coursera
-• Complete interactive coding exercises
-• Learn basic syntax and concepts
-
-Phase 2 (Days ${Math.floor(days/3)+1}-${Math.floor(days*2/3)}): Application
-• Build a small project using the skills
-• Practice daily with coding challenges
-• Join online study groups or forums
-
-Phase 3 (Days ${Math.floor(days*2/3)+1}-${days}): Mastery
-• Refine your project with best practices
-• Learn advanced features and optimization
-• Add the project to your portfolio
-
-Tip: Consistency is key! Dedicate at least 1 hour daily.`;
-
-      return res.json({
-        response: fallbackPlan,
-        success: true,
-        source: "local-plan"
-      });
-    }
-
-    // SIMPLE CONTEXT RESPONSES
-    if (lowerMsg.includes('skill') || lowerMsg.includes('learn') || lowerMsg.includes('prioritize')) {
-      const missingSkills = analysisSummary?.skills?.missing?.slice(0, 3).map(s => s.name).join(', ') || 'Python, cloud computing';
-      const score = analysisSummary?.score || 'N/A';
-      
-      const response = `Based on your analysis score of ${score}/10, prioritize learning: ${missingSkills}.
-
-1. Start with online courses (Coursera, Udemy, freeCodeCamp)
-2. Build practical projects to reinforce learning
-3. Add these skills to your resume as you learn them
-
-Which skill would you like to focus on first?`;
-      
-      return res.json({
-        response: response,
-        success: true,
-        source: "local-skills"
-      });
-    }
-
-    if (lowerMsg.includes('resume') || lowerMsg.includes('update') || lowerMsg.includes('improve')) {
-      const presentSkills = analysisSummary?.skills?.present?.slice(0, 3).map(s => s.name).join(', ') || 'your technical skills';
-      
-      const response = `To improve your resume:
-      
-1. Add a "Skills" section at the top highlighting ${presentSkills}
-2. Use bullet points starting with action verbs (Developed, Built, Optimized)
-3. Quantify achievements with numbers (e.g., "Improved performance by 30%")
-4. Tailor your resume to each job application
-5. Include relevant projects with GitHub links
-
-Would you like specific resume examples?`;
-      
-      return res.json({
-        response: response,
-        success: true,
-        source: "local-resume"
-      });
-    }
-
-    // DEFAULT RESPONSE
-    const score = analysisSummary?.score || 'N/A';
-    const present = analysisSummary?.skills?.present?.slice(0, 3).map(s => s.name).join(', ') || 'some skills';
-    const missing = analysisSummary?.skills?.missing?.slice(0, 3).map(s => s.name).join(', ') || 'a few areas';
+    // ⚠️ CRITICAL: For ALL other queries, call Groq API
+    console.log(`🤖 Calling Groq API for: "${userMessage}"`);
     
-    const defaultResponse = `I can see your analysis score is ${score}/10.
+    // Build context from analysis
+    let context = `You are Career Compass AI, an expert career coach and resume advisor.
+    
+USER'S CURRENT ANALYSIS:
+- Match Score: ${analysisSummary?.score || 'N/A'}/10
+- Experience Level: ${analysisSummary?.experienceLevel || 'Not specified'}
+- Strengths: ${analysisSummary?.skills?.present?.map(s => s.name).join(', ') || 'None listed'}
+- Areas to Improve: ${analysisSummary?.skills?.missing?.map(s => s.name).join(', ') || 'None'}`;
 
-Your strengths: ${present}
-Areas to improve: ${missing}
+    if (jobDesc && jobDesc.length > 50) {
+      context += `\n\nJOB CONTEXT: ${jobDesc.substring(0, 300)}`;
+    }
 
-Try asking me:
-• "How can I learn [specific skill]?"
-• "Give me resume tips"
-• "What projects should I build?"
-• "Create a learning schedule"`;
+    // Add response guidelines
+    context += `
+
+RESPONSE GUIDELINES:
+1. Be SPECIFIC and actionable
+2. Reference the user's strengths when relevant
+3. If they ask about skills or learning, suggest concrete resources
+4. For resume questions, give practical editing tips
+5. For "how to match", provide tailored strategy
+6. Keep responses concise but helpful
+7. Use bullet points or numbered lists for clarity`;
+
+    // Prepare conversation for Groq
+    const messages = [
+      {
+        role: "system",
+        content: context
+      }
+    ];
+
+    // Add conversation history (last 2 exchanges)
+    if (conversation && conversation.length > 0) {
+      conversation.slice(-4).forEach(msg => {
+        messages.push({
+          role: msg.sender === "user" ? "user" : "assistant",
+          content: msg.text?.substring(0, 200) || ""
+        });
+      });
+    }
+
+    // Add current message
+    messages.push({
+      role: "user",
+      content: userMessage
+    });
+
+    console.log(`📤 Sending ${messages.length} messages to Groq API`);
+
+    // ⚠️ CALL GROQ API FOR EVERYTHING EXCEPT EXACT GREETINGS
+    const completion = await groq.chat.completions.create({
+      messages: messages,
+      model: "llama-3.1-8b-instant", // Fast and good quality
+      temperature: 0.7,
+      max_tokens: 600, // Enough for detailed responses
+      top_p: 0.9,
+      stream: false,
+      timeout: 10000 // 10 second timeout
+    });
+
+    const aiResponse = completion.choices[0]?.message?.content || 
+      "I appreciate your question. Based on your strong skills in Java, Python, and JavaScript, you're well-positioned for this role.";
+    
+    console.log(`✅ Groq API response (${aiResponse.length} chars)`);
 
     return res.json({
-      response: defaultResponse,
+      response: aiResponse,
       success: true,
-      source: "local-default"
+      source: "groq-ai",
+      model: "llama-3.1-8b-instant",
+      tokens: completion.usage?.total_tokens || 0
     });
 
   } catch (error) {
-    console.error("AI Chat Error:", error);
+    console.error("❌ AI Chat Error:", error.message);
+    
+    // Provide helpful fallback
+    const fallback = `I'm currently experiencing technical difficulties. Based on your analysis score of ${req.body?.analysisSummary?.score || '10'}/10, you have strong skills in ${req.body?.analysisSummary?.skills?.present?.map(s => s.name).join(', ') || 'programming'}. Focus on highlighting these in your applications.`;
+    
     return res.json({
-      response: "I'm currently updating my systems. In the meantime, focus on the skill gaps identified in your analysis and check out online learning platforms.",
+      response: fallback,
       success: false,
-      source: "error"
+      source: "error-fallback",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
-
-app.get("/test-ai", (req, res) => {
-  res.json({
-    status: "AI Service Active",
-    message: "Career Compass AI is running",
-    endpoints: {
-      "POST /ai-chat": "AI chat interface",
-      "POST /analyze": "Resume analysis",
-      "GET /test-ai": "This test endpoint"
-    },
-    timestamp: new Date().toISOString(),
-    version: "2.1.0"
-  });
+app.get("/ai-status", async (req, res) => {
+  try {
+    // Test the AI model
+    const start = Date.now();
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: "Say 'OK'" }],
+      model: "llama-3.1-8b-instant",
+      max_tokens: 5,
+      timeout: 5000
+    });
+    const responseTime = Date.now() - start;
+    
+    res.json({
+      status: "operational",
+      model: "llama-3.1-8b-instant",
+      response_time_ms: responseTime,
+      test_response: completion.choices[0]?.message?.content,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.json({
+      status: "degraded",
+      model: "llama-3.1-8b-instant",
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
-
 
 app.get("/health", (req, res) => {
   res.json({ 
